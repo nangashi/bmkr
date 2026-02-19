@@ -1,0 +1,39 @@
+[tools]
+node = "22"
+"1password-cli" = "latest"
+
+[env]
+DOCKER_BUILDKIT = "1"
+# 1Password references (resolved by `op run` at container startup)
+ANTHROPIC_API_KEY = "op://Dev/Anthropic/api-key"
+OPENAI_API_KEY = "op://Dev/OpenAI/api-key"
+TAKT_ANTHROPIC_API_KEY = "op://Dev/Anthropic/api-key"
+TAKT_OPENAI_API_KEY = "op://Dev/OpenAI/api-key"
+
+[tasks.build]
+description = "Build dev container"
+run = "docker compose build"
+
+[tasks.up]
+description = "Start dev container with 1Password secrets"
+run = "op run -- docker compose up -d"
+
+[tasks.down]
+description = "Stop dev container"
+run = "docker compose down"
+
+[tasks.shell]
+description = "Open bash shell in dev container"
+run = "docker compose exec dev bash"
+
+[tasks.claude]
+description = "Start Claude Code in dev container"
+run = "docker compose exec dev claude"
+
+[tasks.codex]
+description = "Start Codex CLI in dev container"
+run = "docker compose exec dev codex"
+
+[tasks.takt]
+description = "Start TAKT in dev container"
+run = "docker compose exec dev takt"
