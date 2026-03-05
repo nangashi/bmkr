@@ -2,3 +2,9 @@
 .env.local
 .env.*.local
 .claude/settings.local.json
+
+node_modules/
+.next/
+.skill_output/
+*.tsbuildinfo
+next-env.d.ts
