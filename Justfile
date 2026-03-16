@@ -10,3 +10,35 @@ lint:
 # コード生成
 generate:
     buf generate
+
+# Docker Compose 起動
+db-up:
+    docker compose up -d
+
+# Docker Compose 停止
+db-down:
+    docker compose down
+
+# 全サービスの goose マイグレーション適用
+db-migrate:
+    GOOSE_DRIVER=postgres GOOSE_DBSTRING="postgres://postgres:postgres@localhost:5432/product?sslmode=disable" goose -dir services/product-mgmt/db/migrations up
+    GOOSE_DRIVER=postgres GOOSE_DBSTRING="postgres://postgres:postgres@localhost:5432/customer?sslmode=disable" goose -dir services/customer-mgmt/db/migrations up
+    GOOSE_DRIVER=postgres GOOSE_DBSTRING="postgres://postgres:postgres@localhost:5432/ecsite?sslmode=disable" goose -dir services/ec-site/db/migrations up
+
+# 全サービスの goose マイグレーション ロールバック
+db-rollback:
+    GOOSE_DRIVER=postgres GOOSE_DBSTRING="postgres://postgres:postgres@localhost:5432/product?sslmode=disable" goose -dir services/product-mgmt/db/migrations down
+    GOOSE_DRIVER=postgres GOOSE_DBSTRING="postgres://postgres:postgres@localhost:5432/customer?sslmode=disable" goose -dir services/customer-mgmt/db/migrations down
+    GOOSE_DRIVER=postgres GOOSE_DBSTRING="postgres://postgres:postgres@localhost:5432/ecsite?sslmode=disable" goose -dir services/ec-site/db/migrations down
+
+# DB 初期化（volume 削除 → 再起動 → マイグレーション再適用）
+db-reset:
+    docker compose down -v
+    docker compose up -d
+    @echo "Waiting for database to be ready..."
+    @sleep 5
+    just db-migrate
+
+# Ory Hydra OAuth 2.0 クライアント登録
+hydra-setup:
+    bash scripts/hydra-setup.sh
