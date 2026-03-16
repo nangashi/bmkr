@@ -1,1 +1,22 @@
+# LLM output
 .output/
+
+# Node.js
+node_modules/
+
+# Go binaries
+/services/*/tmp/
+
+# Code generation output
+gen/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

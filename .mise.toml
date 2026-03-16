@@ -1,0 +1,9 @@
+[tools]
+node = "25.8.1"
+go = "1.26.1"
+pnpm = "10.32.1"
+buf = "1.66.1"
+"aqua:sqlc-dev/sqlc" = "1.30.0"
+"aqua:pressly/goose" = "3.27.0"
+just = "1.47.0"
+lefthook = "2.1.4"

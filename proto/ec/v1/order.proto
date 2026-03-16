@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package ec.v1;
+
+option go_package = "github.com/nangashi/bmkr/gen/go/ec/v1;ecv1";
+
+service OrderService {}

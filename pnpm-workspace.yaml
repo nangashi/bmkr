@@ -1,0 +1,3 @@
+packages:
+  - "services/bff"
+  - "services/ec-site/frontend"

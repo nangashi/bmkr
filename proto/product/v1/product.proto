@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package product.v1;
+
+option go_package = "github.com/nangashi/bmkr/gen/go/product/v1;productv1";
+
+service ProductService {}
