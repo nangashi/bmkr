@@ -7,8 +7,12 @@ node_modules/
 # Go binaries
 /services/*/tmp/
 
-# Code generation output
+# Code generation output (buf)
 gen/
+services/bff/gen/
+
+# Code generation output (sqlc)
+**/db/generated/
 
 # IDE
 .idea/

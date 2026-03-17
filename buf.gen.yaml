@@ -1,4 +1,5 @@
 version: v2
+clean: true
 plugins:
   # Go
   - remote: buf.build/protocolbuffers/go
@@ -9,10 +10,10 @@ plugins:
     opt: paths=source_relative
   # TypeScript
   - remote: buf.build/bufbuild/es
-    out: gen/ts
+    out: services/bff/gen
     opt: target=ts
   - remote: buf.build/connectrpc/es
-    out: gen/ts
+    out: services/bff/gen
     opt: target=ts
 inputs:
   - directory: proto

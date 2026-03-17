@@ -7,9 +7,14 @@ setup:
 lint:
     buf lint
 
-# コード生成
+# コード生成（buf + sqlc）
 generate:
     buf generate
+    cd gen/go && go mod init github.com/nangashi/bmkr/gen/go 2>/dev/null || true
+    cd gen/go && go mod tidy
+    cd services/product-mgmt && sqlc generate
+    cd services/customer-mgmt && sqlc generate
+    cd services/ec-site && sqlc generate
 
 # Docker Compose 起動
 db-up:
