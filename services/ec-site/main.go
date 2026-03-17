@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/nangashi/bmkr/gen/go/ec/v1/ecv1connect"
+	db "github.com/nangashi/bmkr/services/ec-site/db/generated"
 )
 
 func main() {
@@ -31,6 +32,14 @@ func main() {
 	}
 	defer pool.Close()
 
+	queries := db.New(pool)
+
+	productServiceURL := os.Getenv("PRODUCT_SERVICE_URL")
+	if productServiceURL == "" {
+		productServiceURL = "http://localhost:8081"
+	}
+	productClient := newProductServiceClient(productServiceURL)
+
 	e := echo.New()
 
 	e.GET("/health", func(c echo.Context) error {
@@ -40,7 +49,7 @@ func main() {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	cartPath, cartHandler := ecv1connect.NewCartServiceHandler(&ecv1connect.UnimplementedCartServiceHandler{})
+	cartPath, cartHandler := ecv1connect.NewCartServiceHandler(&CartServiceHandler{queries: queries, productClient: productClient})
 	e.Any(cartPath+"*", echo.WrapHandler(cartHandler))
 
 	server := &http.Server{
