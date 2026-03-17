@@ -44,6 +44,16 @@ db-reset:
     @sleep 5
     just db-migrate
 
+# 全サービス並列起動
+dev:
+    #!/usr/bin/env bash
+    trap 'kill 0' EXIT
+    (cd services/product-mgmt && go run main.go) &
+    (cd services/customer-mgmt && go run main.go) &
+    (cd services/ec-site && go run main.go) &
+    (cd services/bff && pnpm dev) &
+    wait
+
 # Ory Hydra OAuth 2.0 クライアント登録
 hydra-setup:
     bash scripts/hydra-setup.sh
