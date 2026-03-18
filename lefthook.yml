@@ -2,6 +2,8 @@ pre-commit:
   commands:
     fmt-check:
       run: just fmt-check
+    gitleaks:
+      run: gitleaks protect --staged --verbose
 
 pre-push:
   commands:

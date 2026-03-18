@@ -22,6 +22,11 @@ lint-go:
     cd services/customer-mgmt && golangci-lint run ./...
     cd services/ec-site && golangci-lint run ./...
 
+# --- Secret Scan ---
+# シークレット検出 (gitleaks)
+secret-scan:
+    gitleaks detect --verbose
+
 # --- Format ---
 # 全 format 実行
 fmt: fmt-ts fmt-go
