@@ -15,6 +15,7 @@ lint-proto:
 # TypeScript lint (oxlint)
 lint-ts:
     oxlint --config oxlint.json services/bff/src/
+    oxlint --config oxlint.json services/ec-site/frontend/src/
 
 # Go lint (golangci-lint)
 lint-go:
@@ -34,6 +35,7 @@ fmt: fmt-ts fmt-go
 # TypeScript format (oxfmt)
 fmt-ts:
     oxfmt services/bff/src/
+    oxfmt services/ec-site/frontend/src/
 
 # Go format (golangci-lint fmt)
 fmt-go:
@@ -48,6 +50,7 @@ fmt-check: fmt-check-ts fmt-check-go
 # TypeScript format check
 fmt-check-ts:
     oxfmt --check services/bff/src/
+    oxfmt --check services/ec-site/frontend/src/
 
 # Go format check
 fmt-check-go:
@@ -100,6 +103,7 @@ dev:
     (cd services/customer-mgmt && go run main.go) &
     (cd services/ec-site && go run main.go) &
     (cd services/bff && pnpm dev) &
+    (cd services/ec-site/frontend && pnpm dev) &
     wait
 
 # Ory Hydra OAuth 2.0 クライアント登録
