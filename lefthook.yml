@@ -1,4 +1,9 @@
 pre-commit:
   commands:
-    buf-lint:
-      run: buf lint
+    fmt-check:
+      run: just fmt-check
+
+pre-push:
+  commands:
+    lint:
+      run: just lint

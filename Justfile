@@ -2,10 +2,53 @@
 setup:
     mise install
     pnpm install
+    lefthook install
 
-# Protobuf のリント
-lint:
+# --- Lint ---
+# 全 lint 実行
+lint: lint-proto lint-ts lint-go
+
+# Protobuf lint
+lint-proto:
     buf lint
+
+# TypeScript lint (oxlint)
+lint-ts:
+    oxlint --config oxlint.json services/bff/src/
+
+# Go lint (golangci-lint)
+lint-go:
+    cd services/product-mgmt && golangci-lint run ./...
+    cd services/customer-mgmt && golangci-lint run ./...
+    cd services/ec-site && golangci-lint run ./...
+
+# --- Format ---
+# 全 format 実行
+fmt: fmt-ts fmt-go
+
+# TypeScript format (oxfmt)
+fmt-ts:
+    oxfmt services/bff/src/
+
+# Go format (golangci-lint fmt)
+fmt-go:
+    cd services/product-mgmt && golangci-lint fmt ./...
+    cd services/customer-mgmt && golangci-lint fmt ./...
+    cd services/ec-site && golangci-lint fmt ./...
+
+# --- Format Check ---
+# 全 format check
+fmt-check: fmt-check-ts fmt-check-go
+
+# TypeScript format check
+fmt-check-ts:
+    oxfmt --check services/bff/src/
+
+# Go format check
+fmt-check-go:
+    cd services/product-mgmt && golangci-lint fmt --diff ./...
+    cd services/customer-mgmt && golangci-lint fmt --diff ./...
+    cd services/ec-site && golangci-lint fmt --diff ./...
 
 # コード生成（buf + sqlc）
 generate:
