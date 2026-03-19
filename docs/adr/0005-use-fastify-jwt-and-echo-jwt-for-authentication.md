@@ -1,6 +1,7 @@
 ---
 status: "accepted"
 date: 2026-03-15
+last-validated: 2026-03-15
 ---
 
 # BFF と管理画面の認証に JWT 自前実装（@fastify/jwt + echo-jwt）を採用する

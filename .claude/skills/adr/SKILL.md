@@ -1,6 +1,6 @@
 ---
 name: adr
-description: Create, supersede, or propose Architecture Decision Records (ADRs) in MADR format. Use this skill whenever the user wants to document an architectural decision, record a technical choice, create an ADR, supersede an existing ADR, or get suggestions for what ADRs should be created. Trigger on `/adr`, or when the user mentions "ADR", "architecture decision", "decision record", "supersede", "propose ADR", or wants to document why a particular technology, pattern, or approach was chosen.
+description: Create, supersede, check, re-evaluate, or propose Architecture Decision Records (ADRs) in MADR format. Use this skill whenever the user wants to document an architectural decision, record a technical choice, create an ADR, supersede an existing ADR, check ADR freshness, re-evaluate an existing ADR, or get suggestions for what ADRs should be created. Trigger on `/adr`, or when the user mentions "ADR", "architecture decision", "decision record", "supersede", "propose ADR", "check ADR", "re-evaluate ADR", "ADR check", "ADR re-evaluate", or wants to document why a particular technology, pattern, or approach was chosen.
 allowed-tools: Bash, Glob, Read, Write, AskUserQuestion, Agent, WebSearch, WebFetch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
 user-invocable: true
 argument-description: "Optional: the decision topic (e.g., 'use React for frontend') or 'propose' to get ADR suggestions"
@@ -16,6 +16,8 @@ MADR (Markdown Architectural Decision Records) 形式で ADR を作成する。A
 
 `$ARGUMENTS` を確認する:
 - `propose` が指定されている場合（例: `/adr propose`）、**提案モード**に入る → 「提案モード」セクション（本ファイル末尾）に従う
+- `check` が指定されている場合（例: `/adr check`）、**チェックモード**に入る → 「チェックモード」セクションに従う
+- `re-evaluate` + 番号が指定されている場合（例: `/adr re-evaluate 0012`）、**再評価モード**に入る → 「再評価モード」セクションに従う
 - トピックが指定されている場合（例: `/adr ローカルストレージに SQLite を使用`）、それを出発点にする
 - 引数がない場合、ユーザーに以下を案内する:
 
@@ -25,11 +27,15 @@ ADR スキルでは以下の操作が可能です:
 1. **作成** — 特定の意思決定を ADR として記録する（例: `/adr ローカルストレージに SQLite を使用`）
 2. **提案** — プロジェクトの要求・設計・既存 ADR を分析し、作成すべき ADR を提案する（`/adr propose`）
 3. **supersede** — 既存の ADR を見直して新しい ADR で置き換える
+4. **チェック** — 全ADRの鮮度を監査する（`/adr check`）
+5. **再評価** — 特定ADRの前提変化を検証し再評価する（`/adr re-evaluate NNNN`）
 
 どの操作を行いますか？トピックを教えていただくか、「提案」と答えていただければ提案モードに入ります。
 ```
 
 ユーザーが「提案」「propose」等と回答した場合は**提案モード**に入る → 「提案モード」セクション（本ファイル末尾）に従う。
+ユーザーが「チェック」「check」等と回答した場合は**チェックモード**に入る → 「チェックモード」セクションに従う。
+ユーザーが「再評価」「re-evaluate」等と回答した場合は**再評価モード**に入る → 「再評価モード」セクションに従う。
 
 トピックにはユーザーが背景情報、選択肢、要件などを含めている場合がある。これらの情報は Step 3 のフレームワーク提案に活用する。
 
@@ -40,7 +46,7 @@ ADR スキルでは以下の操作が可能です:
 1. `docs/adr/` から対象の旧 ADR を Read で読み込む
 2. 旧 ADR の Context and Problem Statement、Prerequisites、Decision Drivers を引き継ぎの土台にする
 3. Step 3 のフレームワーク提案で「何が変わったか」を Context に含め、旧 ADR の判断軸を再利用または更新する
-4. 以降の Step 3〜7 は通常フローと同じだが、frontmatter に `supersedes` を設定する（Step 7 テンプレート参照）
+4. 以降の Step 3〜7 は通常フローと同じ。新 ADR の frontmatter には `supersedes` を記載しない（旧 ADR 側の `superseded-by` で追跡するため）
 
 ## Step 2: 次の ADR 番号を決定
 
@@ -271,21 +277,21 @@ ADR の内容を確認します:
 - `NNNN` はゼロ埋め連番
 - タイトルは短く説明的な kebab-case（例: `use-sqlite-for-local-storage`）
 
-frontmatter の `date` には当日の日付を使用する。`status` は `"proposed"` に設定する。
+frontmatter の `date` には当日の日付を使用する。`status` は `"accepted"` に設定する（このプロジェクトではproposed状態を使わない）。`last-validated` には `date` と同じ日付を設定する。
 
 ### テンプレート
 
 ADR の本文は日本語で記述する。ただし以下の構文は英語のまま維持する:
-- frontmatter のキーと値（`status: "proposed"`, `date:`）
+- frontmatter のキーと値（`status: "accepted"`, `date:`, `last-validated:`）
 - セクション見出し（`## Context and Problem Statement` など）
 - Pros/Cons の定型表現（`Good, because` / `Bad, because`）
 - Decision Outcome の定型表現（`Chosen option: "..."`, `because`）
 
 ```markdown
 ---
-status: "proposed"
-date: {YYYY-MM-DD}
-supersedes: "NNNN"  # supersede モード時のみ記載。旧 ADR の番号
+status: "accepted"          # accepted | implemented | withdrawn
+date: {YYYY-MM-DD}          # 作成日（不変）
+last-validated: {YYYY-MM-DD} # 最終検証日（作成時はdateと同じ）
 ---
 
 # {決定内容を表す短いタイトル}
@@ -371,11 +377,17 @@ Chosen option: "{選択した選択肢}"
 ## More Information
 
 {補足情報、リンク、参考資料 — 日本語}
+
+## Change Log
+
+| Date | Change | Reason |
+|------|--------|--------|
+| {YYYY-MM-DD} | 初版作成 | N/A |
 ```
 
 ### セクション包含ルール:
 - **常に含める**: Context and Problem Statement, Prerequisites, Decision Drivers, Considered Options (Excluded Options を含む), Comparison Overview, Pros and Cons of the Options, Decision Outcome (Rationale, Accepted Tradeoffs を含む)
-- **LLM が提案し、ユーザーが削除指示しなかった場合に含める**: Consequences, More Information
+- **LLM が提案し、ユーザーが削除指示しなかった場合に含める**: Consequences, More Information, Change Log
 - ユーザーが削除を指示した場合は**セクションごと省略**する — プレースホルダーテキストは残さない
 - 前提条件がない場合は Prerequisites セクションに「なし」と記載する — 「前提条件なし」と明記することに情報価値がある
 - 除外した選択肢がない場合は Excluded Options に「なし」と記載する
@@ -385,10 +397,117 @@ Chosen option: "{選択した選択肢}"
 
 1. `docs/adr/{NNNN}-{title}.md` にファイルを書き出す
 2. **supersede モードの場合**: 旧 ADR の frontmatter を更新する
-   - `status` を `"superseded"` に変更
+   - `status` を `"withdrawn"` に変更
    - `superseded-by: "NNNN"` を追加（NNNN は新 ADR の番号）
    - 旧 ADR の本文は一切変更しない
 3. ファイルパスを伝える。追加の確認は行わず、ここで完了とする
+
+---
+
+## チェックモード
+
+`/adr check` または「チェック」が選択された場合のフロー。読み取り専用の監査を行い、ファイル変更は行わない。
+
+### Check Step 1: 全ADRの読み込み
+
+`docs/adr/*.md` を Glob で検索し、すべての ADR を Read で読み込む。各 ADR から以下を抽出する:
+- 番号・タイトル
+- `status`
+- `last-validated`（存在しない場合は `date` をフォールバックとして使用）
+- `review-interval`（存在する場合）
+- Prerequisites セクションの内容
+- Accepted Tradeoffs セクションの内容
+
+### Check Step 2: 鮮度チェック
+
+各 ADR について:
+- `status: withdrawn` の ADR はスキップする
+- `last-validated` から本日までの経過日数を計算する
+- `review-interval` フィールドがあればそちらを閾値として使用、なければデフォルト 90日
+- 閾値を超えた ADR を「⚠️ 要レビュー」として記録する
+
+### Check Step 3: 依存整合性チェック
+
+各 ADR の Prerequisites セクションに記載された依存先 ADR の status を確認する:
+- 依存先が `withdrawn` になっている場合、警告を出す
+- 依存先が `accepted` または `implemented` であれば OK
+
+### Check Step 4: 監視対象トレードオフの抽出
+
+各 ADR の Accepted Tradeoffs セクションから、監視対象の記述（「監視すべき」「注視」「ウォッチ」「watch」「monitor」等）を抽出して報告する。
+
+### Check Step 5: 結果の報告
+
+以下のフォーマットでユーザーに報告する:
+
+```
+## ADR 監査結果
+
+### 鮮度チェック
+| ADR | last-validated | 経過日数 | 状態 |
+|-----|---------------|---------|------|
+| 0001 | 2026-03-15 | 4日 | ✅ OK |
+| 0012 | 2026-03-18 | 95日 | ⚠️ 要レビュー |
+
+### 依存整合性チェック
+| ADR | 依存先 | 問題 |
+|-----|--------|------|
+| 0005 | ADR-0003 | ✅ OK |
+| 0005 | ADR-0001 | ⚠️ withdrawn |
+
+### 監視対象トレードオフ
+| ADR | 内容 |
+|-----|------|
+| 0012 | Betterleaksの成熟度を監視すべき |
+```
+
+問題がない項目もすべて表示し、全体像を把握できるようにする。ファイル変更は一切行わない。
+
+---
+
+## 再評価モード
+
+`/adr re-evaluate NNNN` または「再評価」が選択された場合のフロー。人間承認を必須とする。
+
+### Re-evaluate Phase 1: Audit（自動・読み取り専用）
+
+1. 対象 ADR（番号 NNNN）を `docs/adr/` から Read で読み込む
+2. Prerequisites の各項目について:
+   - 依存先 ADR の status を確認する
+   - コードベースの状態を確認する（対象技術がまだ使われているか — go.mod, package.json, 設定ファイル等を参照）
+3. Decision Outcome で選択した技術について:
+   - WebSearch で最新状況を調査する（メジャーバージョン変更、deprecation、セキュリティ問題）
+   - Excluded Options に記載された候補の現状も確認する（成熟して再検討に値するか）
+4. 結果をユーザーに報告する:
+
+```
+## ADR-NNNN 再評価レポート
+
+### 前提条件の変化
+- {変化があれば記載、なければ「変化なし」}
+
+### 選択技術の現状
+- {最新バージョン、既知の問題等}
+
+### 除外候補の現状
+- {成熟度の変化等}
+
+### 判定
+- ✅ 現行決定は有効 / ⚠️ 再検討を推奨
+```
+
+### Re-evaluate Phase 2: Re-evaluate（ユーザーが「再検討する」と回答した場合のみ）
+
+Phase 1 の報告後、ユーザーに以下を確認する:
+- 「現行決定は有効」→ `last-validated` を本日の日付に更新し、Change Log に記録する。ここで完了
+- 「再検討する」→ 以下の再検討フローに進む
+
+**再検討フロー:**
+1. 既存の Step 3〜7 のワークフロー（調査→比較→ユーザー判断→生成）を再利用する
+2. Phase 1 の調査結果を Step 3 のフレームワーク提案の入力として活用する
+3. 結果に応じて:
+   - **同じ決定が維持された場合**: 既存 ADR の `last-validated` を本日の日付に更新し、Change Log に再評価結果を記録する。新 ADR は作成しない
+   - **決定が変わった場合**: supersede（新 ADR を作成し、旧 ADR の `status` を `"withdrawn"` + `superseded-by: "NNNN"` に更新する）
 
 ---
 

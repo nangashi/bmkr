@@ -1,6 +1,7 @@
 ---
-status: "accepted"
+status: "implemented"
 date: 2026-03-17
+last-validated: 2026-03-17
 ---
 
 # Go の formatter/linter に golangci-lint v2 を採用する

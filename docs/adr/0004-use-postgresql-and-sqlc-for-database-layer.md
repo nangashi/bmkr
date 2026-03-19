@@ -1,6 +1,7 @@
 ---
-status: "accepted"
+status: "implemented"
 date: 2026-03-15
+last-validated: 2026-03-15
 ---
 
 # データベースに PostgreSQL、データアクセスライブラリに sqlc を採用する

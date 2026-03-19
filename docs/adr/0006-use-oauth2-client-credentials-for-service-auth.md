@@ -1,6 +1,7 @@
 ---
 status: "accepted"
 date: 2026-03-15
+last-validated: 2026-03-15
 ---
 
 # サービス間認証に OAuth 2.0 Client Credentials Grant を使用する

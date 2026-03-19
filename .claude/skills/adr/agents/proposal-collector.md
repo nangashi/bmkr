@@ -12,7 +12,7 @@
 
 - Glob で `docs/adr/*.md` を検索し、すべての ADR を Read で読み込む
 - 各 ADR から以下を抽出する:
-  - **番号・タイトル・status**（accepted / proposed / superseded）
+  - **番号・タイトル・status**（accepted / implemented / withdrawn）
   - **決定内容の要約**（何を、どう決めたか）
   - **前提条件（Prerequisites）**（他の ADR や技術への依存）
 
@@ -67,7 +67,7 @@
 
 ### 除外基準（以下のいずれかに該当する候補は除外する）:
 
-1. **既存 ADR で決定済み** — `docs/adr/` 内の accepted/proposed ADR で既にカバーされている
+1. **既存 ADR で決定済み** — `docs/adr/` 内の accepted/implemented ADR で既にカバーされている
 2. **選択肢が実質的に存在しない** — 前提条件や制約により選択肢が1つに絞られる（例: 「Go の Echo を使う」が決定済みなら、Echo のミドルウェア選定は Echo 標準一択）
 3. **既存 ADR からほぼ無条件で決まる** — 既存の決定の組み合わせから論理的に導出可能（例: React + Vite が決定済みなら、バンドラーは Vite 一択）
 4. **実装で事実上決定済み** — コードベースに既に組み込まれており、変更の議論が発生していない（ただし、暗黙の決定を明文化すべきケースは候補に残す）

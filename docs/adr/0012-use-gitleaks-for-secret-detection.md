@@ -1,6 +1,7 @@
 ---
-status: "accepted"
+status: "implemented"
 date: 2026-03-18
+last-validated: 2026-03-18
 ---
 
 # シークレット検出ツールに Gitleaks を使用する

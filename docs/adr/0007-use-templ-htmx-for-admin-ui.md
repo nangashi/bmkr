@@ -1,6 +1,7 @@
 ---
 status: "accepted"
 date: 2026-03-15
+last-validated: 2026-03-15
 ---
 
 # 商品管理・顧客管理の管理画面UIに templ + HTMX を採用する

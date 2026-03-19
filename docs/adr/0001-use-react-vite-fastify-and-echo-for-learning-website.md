@@ -1,6 +1,7 @@
 ---
-status: "accepted"
+status: "implemented"
 date: 2026-03-15
+last-validated: 2026-03-15
 ---
 
 # ECサイトのフロントエンド・BFF・バックエンドAPIに React (Vite) + Fastify + Echo を採用する

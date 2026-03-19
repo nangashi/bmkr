@@ -1,6 +1,7 @@
 ---
-status: "accepted"
+status: "implemented"
 date: 2026-03-17
+last-validated: 2026-03-17
 ---
 
 # TypeScript の linter/formatter に Oxlint + Oxfmt を採用する
