@@ -99,9 +99,9 @@ db-reset:
 dev:
     #!/usr/bin/env bash
     trap 'kill 0' EXIT
-    (cd services/product-mgmt && go run main.go) &
-    (cd services/customer-mgmt && go run main.go) &
-    (cd services/ec-site && go run main.go) &
+    (cd services/product-mgmt && go run .) &
+    (cd services/customer-mgmt && go run .) &
+    (cd services/ec-site && go run .) &
     (cd services/bff && pnpm dev) &
     (cd services/ec-site/frontend && pnpm dev) &
     wait
