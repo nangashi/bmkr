@@ -115,3 +115,4 @@ Chosen option: "OAuth 2.0 Client Credentials Grant"
 * [Keycloak Getting Started (Docker)](https://www.keycloak.org/getting-started/getting-started-docker)
 * [openid-client v6 (TypeScript)](https://github.com/panva/openid-client)
 * [coreos/go-oidc v3 (Go)](https://github.com/coreos/go-oidc)
+* BFF→Backend 間の `Authorization` ヘッダーはサービストークン（Client Credentials）専用とする。ユーザー識別のための JWT は `X-User-Token` ヘッダーで別途伝播する（ADR-0013）
