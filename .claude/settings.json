@@ -4,5 +4,40 @@
     "serena@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FILE=$(jq -r \".tool_input.file_path // .tool_input.path\" <<< \"$(cat)\"); case \"$FILE\" in */gen/*|*/db/generated/*) exit 0;; esac; cd /home/toyama-ryosuke/ghq/github.com/nangashi/bmkr; case \"$FILE\" in *.ts|*.tsx) oxfmt \"$FILE\" 2>/dev/null; oxlint --config oxlint.json \"$FILE\" 2>&1 | tail -20;; *.go) DIR=$(dirname \"$FILE\"); while [ \"$DIR\" != \"/\" ] && [ ! -f \"$DIR/go.mod\" ]; do DIR=$(dirname \"$DIR\"); done; if [ -f \"$DIR/go.mod\" ]; then REL=$(realpath --relative-to=\"$DIR\" \"$FILE\"); cd \"$DIR\" && golangci-lint fmt \"./$REL\" 2>/dev/null; golangci-lint run \"./$REL\" 2>&1 | tail -20; fi;; esac'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FILE=$(jq -r \".tool_input.file_path // .tool_input.path\" <<< \"$(cat)\"); PROTECTED=\"oxlint.json .golangci.yml\"; for p in $PROTECTED; do case \"$FILE\" in *\"$p\") echo \"BLOCKED: $FILE is a protected config file. Fix the code, not the linter/formatter config.\" >&2; exit 2;; esac; done'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FLAG=/tmp/claude-stop-hook-failed-bmkr; if [ -f \"$FLAG\" ]; then rm -f \"$FLAG\"; echo \"[Stop Hook] Skipping lint (already failed once). Please fix and run just lint manually.\" >&2; exit 0; fi; cd /home/toyama-ryosuke/ghq/github.com/nangashi/bmkr && OUTPUT=$(just lint 2>&1); EXIT=$?; if [ $EXIT -ne 0 ]; then touch \"$FLAG\"; echo \"$OUTPUT\" | tail -30; echo \"\\n[Stop Hook] Lint failed. Fix the issues before completing.\" >&2; exit 1; fi; rm -f \"$FLAG\"; echo \"[Stop Hook] All lint checks passed.\"; exit 0'"
+          }
+        ]
+      }
+    ]
   }
 }
