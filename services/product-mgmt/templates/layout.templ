@@ -1,0 +1,32 @@
+package templates
+
+// Layout は管理画面の共通レイアウトコンポーネント。
+// title にページタイトルを指定し、children にページ本体を渡す。
+//
+// 動作:
+//   - HTML5 doctype + lang="ja" を出力する
+//   - <head> に charset=UTF-8、viewport、title を含める
+//   - HTMX の CDN スクリプトを読み込む
+//   - <body> 内に <header>（サイト名）と <main>（children）を配置する
+templ Layout(title string) {
+	<!DOCTYPE html>
+	<html lang="ja">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } - 商品管理</title>
+			<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+		</head>
+		<body>
+			<header>
+				<h1>商品管理システム</h1>
+				<nav>
+					<a href="/admin/products">商品一覧</a>
+				</nav>
+			</header>
+			<main>
+				{ children... }
+			</main>
+		</body>
+	</html>
+}

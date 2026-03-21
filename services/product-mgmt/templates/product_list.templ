@@ -1,0 +1,148 @@
+package templates
+
+import "fmt"
+
+// ProductListPage は商品一覧ページ全体のコンポーネント。
+// Layout で囲み、見出し・テーブル・ページネーションを配置する。
+//
+// 動作:
+//   - Layout("商品一覧") で共通レイアウトを適用する
+//   - ページ見出し「商品一覧」と総件数を表示する
+//   - ProductTable で商品テーブルを描画する
+//   - Pagination でページネーションを描画する
+templ ProductListPage(data ProductListPageData) {
+	@Layout("商品一覧") {
+		<h2>商品一覧（{ fmt.Sprintf("%d", data.TotalCount) }件）</h2>
+		@ProductTableSection(data)
+	}
+}
+
+// ProductTableSection はテーブル + ページネーションをまとめるラッパーコンポーネント。
+// HTMX リクエスト時はこのコンポーネントのみ返す。id="product-table-section" が
+// hx-target の対象になり、テーブルとページネーションの両方が同時に更新される。
+templ ProductTableSection(data ProductListPageData) {
+	<div id="product-table-section">
+		@ProductTable(data.Products)
+		@Pagination(data.CurrentPage, data.TotalPages)
+	</div>
+}
+
+// ProductListPageData は ProductListPage コンポーネントに渡すデータ。
+// Go 側の ProductListData から変換して使う。
+//
+// 動作:
+//   - Products: 表示する商品のスライス（0件の場合は空）
+//   - CurrentPage: 現在のページ番号（1始まり）
+//   - TotalPages: 総ページ数
+//   - TotalCount: 商品の総件数
+type ProductListPageData struct {
+	Products    []ProductItemData
+	CurrentPage int
+	TotalPages  int
+	TotalCount  int64
+}
+
+// ProductItemData は商品テーブルの1行分のデータ。
+// Go 側の ProductItem から変換して使う。
+//
+// 動作:
+//   - ID: 表示用にフォーマット済みの商品ID文字列
+//   - Name: 商品名
+//   - Price: 表示用にフォーマット済みの価格文字列（例: "1,000"）
+//   - StockQuantity: 表示用にフォーマット済みの在庫数文字列
+//   - CreatedAt: フォーマット済み日時文字列
+type ProductItemData struct {
+	ID            string
+	Name          string
+	Price         string
+	StockQuantity string
+	CreatedAt     string
+}
+
+// ProductTable は商品一覧テーブルのコンポーネント。
+// HTMX によるページネーション更新対象として id="product-table" を持つ。
+//
+// 動作:
+//   - テーブルヘッダ: ID・商品名・価格・在庫数・作成日時
+//   - products が空の場合、colspan=5 で「商品がありません」と表示する
+//   - products が存在する場合、各行に商品データを表示する
+templ ProductTable(products []ProductItemData) {
+	<table>
+		<thead>
+			<tr>
+				<th>ID</th>
+				<th>商品名</th>
+				<th>価格</th>
+				<th>在庫数</th>
+				<th>作成日時</th>
+			</tr>
+		</thead>
+		<tbody>
+			if len(products) == 0 {
+				<tr>
+					<td colspan="5">商品がありません</td>
+				</tr>
+			} else {
+				for _, p := range products {
+					<tr>
+						<td>{ p.ID }</td>
+						<td>{ p.Name }</td>
+						<td>{ p.Price }</td>
+						<td>{ p.StockQuantity }</td>
+						<td>{ p.CreatedAt }</td>
+					</tr>
+				}
+			}
+		</tbody>
+	</table>
+}
+
+// Pagination はページネーションコンポーネント。
+// HTMX の hx-get で商品テーブルを部分更新する。
+//
+// 動作:
+//   - totalPages が 1 以下の場合、ページネーションを表示しない
+//   - 「前へ」リンク: currentPage が 1 のとき disabled 属性を付与する
+//   - 現在のページ番号と総ページ数を「1 / 5」形式で表示する
+//   - 「次へ」リンク: currentPage が totalPages のとき disabled 属性を付与する
+//   - 各リンクは hx-get="/admin/products?page=N" で HTMX リクエストを発行する
+//   - hx-target="#product-table-section" で商品テーブル部分のみ差し替える
+//   - hx-swap="outerHTML" でテーブル要素ごと入れ替える
+//   - hx-push-url="true" でブラウザの URL を更新する
+templ Pagination(currentPage int, totalPages int) {
+	if totalPages > 1 {
+		<nav aria-label="ページネーション">
+			<span>
+				if currentPage > 1 {
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/admin/products?page=%d", currentPage-1)) }
+						hx-get={ fmt.Sprintf("/admin/products?page=%d", currentPage-1) }
+						hx-target="#product-table-section"
+						hx-swap="outerHTML"
+						hx-push-url="true"
+					>
+						前へ
+					</a>
+				} else {
+					<span aria-disabled="true">前へ</span>
+				}
+			</span>
+			<span>{ fmt.Sprintf("%d / %d", currentPage, totalPages) }</span>
+			<span>
+				if currentPage < totalPages {
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/admin/products?page=%d", currentPage+1)) }
+						hx-get={ fmt.Sprintf("/admin/products?page=%d", currentPage+1) }
+						hx-target="#product-table-section"
+						hx-swap="outerHTML"
+						hx-push-url="true"
+					>
+						次へ
+					</a>
+				} else {
+					<span aria-disabled="true">次へ</span>
+				}
+			</span>
+		</nav>
+	}
+}
