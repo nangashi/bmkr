@@ -97,11 +97,12 @@ bash .claude/skills/issue-plan/scripts/verify-plan.sh \
 **サブエージェントに伝えること:**
 - 計画の内容（plan.md）、Issue 本文、作業ディレクトリパス
 - 事前検証結果（pre-review.md）
+- `docs/guides/architecture/` 配下のガイド（特に `over-abstraction.md`, `over-externalization.md`）を読むこと
 - 出力先パスと「Write で書き出すこと」
 
 **確認してほしい観点（事前検証で拾えないもの）:**
-- 1箇所でしか使わないのに導入されたデザインパターンはないか（3回の類似コード > premature abstraction）
-- 固定で良い値を環境変数や設定ファイルに切り出していないか
+- `docs/guides/architecture/over-abstraction.md` に該当する過剰設計はないか
+- `docs/guides/architecture/over-externalization.md` に該当する過剰外部化はないか
 - 標準ライブラリやプロジェクト既存の仕組みで済むのに新しい依存を追加していないか
 - 同じ要件を満たすもっとシンプルな方法はないか
 
