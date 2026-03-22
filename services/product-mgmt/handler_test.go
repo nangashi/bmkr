@@ -179,10 +179,9 @@ func TestListProducts_NilSliceReturnsEmpty(t *testing.T) {
 	if resp.Msg == nil {
 		t.Fatal("response message should not be nil")
 	}
-	// nil スライスでも空レスポンスとして返す
-	if resp.Msg.Products == nil {
-		// products フィールドが nil でも proto では空リストとして扱われるため許容
-		// ただし空スライスに正規化されていることが望ましい
+	// nil スライスでも空レスポンスとして返す（nil / 空スライスどちらも許容）
+	if got := len(resp.Msg.Products); got != 0 {
+		t.Errorf("products count = %d, want 0", got)
 	}
 }
 
