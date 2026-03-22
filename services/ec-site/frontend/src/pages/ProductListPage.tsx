@@ -7,8 +7,7 @@ import { ProductService, type Product } from "@bmkr/bff/gen/product/v1/product_p
 const transport = createConnectTransport({
   baseUrl: "/",
 });
-const _client = createClient(ProductService, transport);
-void Link;
+const client = createClient(ProductService, transport);
 
 // ProductListPage は商品一覧ページを表示するコンポーネント。
 //
@@ -24,14 +23,103 @@ void Link;
 //   - API 呼び出しエラー時はエラーメッセージを表示する
 //   - Error インスタンスの場合は message を、それ以外は String() で文字列化する
 export function ProductListPage(): React.ReactElement {
-  const [_products, _setProducts] = useState<Product[]>([]);
-  const [_loading, _setLoading] = useState(true);
-  const [_error, _setError] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: implement - client.listProducts({}) を呼び出し、state を更新する
+    let cancelled = false;
+
+    async function loadProducts(): Promise<void> {
+      try {
+        const response = await client.listProducts({});
+        if (cancelled) {
+          return;
+        }
+        setProducts(response.products);
+        setError(null);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // TODO: implement - loading / error / empty / list の分岐レンダリング
-  return <div>not implemented</div>;
+  if (loading) {
+    return <div>読み込み中...</div>;
+  }
+
+  if (error !== null) {
+    return <div>{error}</div>;
+  }
+
+  if (products.length === 0) {
+    return <div>商品がありません</div>;
+  }
+
+  return (
+    <div>
+      <h1>商品一覧</h1>
+      <ul
+        style={{
+          listStyle: "none",
+          margin: 0,
+          padding: 0,
+          display: "grid",
+          gap: "16px",
+        }}
+      >
+        {products.map((product) => (
+          <li
+            key={product.id.toString()}
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: "8px",
+              padding: "16px",
+            }}
+          >
+            <Link
+              to={`/products/${product.id.toString()}`}
+              style={{
+                color: "inherit",
+                textDecoration: "none",
+                display: "grid",
+                gap: "12px",
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: "#e5e7eb",
+                  color: "#6b7280",
+                  minHeight: "160px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "6px",
+                }}
+              >
+                No Image
+              </div>
+              <div>
+                <div>{product.name}</div>
+                <div>{product.price.toString()}円</div>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }

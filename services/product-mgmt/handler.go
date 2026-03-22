@@ -80,7 +80,21 @@ func (h *ProductServiceHandler) ListProducts(
 	ctx context.Context,
 	req *connect.Request[productv1.ListProductsRequest],
 ) (*connect.Response[productv1.ListProductsResponse], error) {
-	panic("not implemented")
+	_ = req
+
+	products, err := h.store.ListProducts(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	protoProducts := make([]*productv1.Product, 0, len(products))
+	for _, product := range products {
+		protoProducts = append(protoProducts, dbProductToProto(product))
+	}
+
+	return connect.NewResponse(&productv1.ListProductsResponse{
+		Products: protoProducts,
+	}), nil
 }
 
 func dbProductToProto(p db.Product) *productv1.Product {

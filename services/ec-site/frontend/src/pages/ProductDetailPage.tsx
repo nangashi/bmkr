@@ -7,8 +7,7 @@ import { ProductService, type Product } from "@bmkr/bff/gen/product/v1/product_p
 const transport = createConnectTransport({
   baseUrl: "/",
 });
-const _client = createClient(ProductService, transport);
-void Link;
+const client = createClient(ProductService, transport);
 
 // ProductDetailPage は商品詳細ページを表示するコンポーネント。
 //
@@ -26,14 +25,91 @@ void Link;
 //   - Error インスタンスの場合は message を、それ以外は String() で文字列化する
 export function ProductDetailPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
-  const [_product, _setProduct] = useState<Product | null>(null);
-  const [_loading, _setLoading] = useState(true);
-  const [_error, _setError] = useState<string | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: implement - id が存在する場合、client.getProduct を呼び出し state を更新する
+    if (id === undefined) {
+      setError("商品 ID が指定されていません");
+      setLoading(false);
+      return;
+    }
+
+    const productId = id;
+    let cancelled = false;
+
+    async function loadProduct(): Promise<void> {
+      try {
+        const response = await client.getProduct({ id: BigInt(productId) });
+        if (cancelled) {
+          return;
+        }
+        setProduct(response.product ?? null);
+        setError(null);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadProduct();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  // TODO: implement - loading / error / product の分岐レンダリング
-  return <div>not implemented</div>;
+  if (loading) {
+    return <div>読み込み中...</div>;
+  }
+
+  if (error !== null) {
+    return (
+      <div>
+        <p>{error}</p>
+        <Link to="/">商品一覧に戻る</Link>
+      </div>
+    );
+  }
+
+  if (product === null) {
+    return (
+      <div>
+        <p>商品が見つかりません</p>
+        <Link to="/">商品一覧に戻る</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "grid", gap: "16px" }}>
+      <Link to="/">商品一覧に戻る</Link>
+      <div
+        style={{
+          backgroundColor: "#e5e7eb",
+          color: "#6b7280",
+          minHeight: "240px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "8px",
+        }}
+      >
+        No Image
+      </div>
+      <div style={{ display: "grid", gap: "8px" }}>
+        <h1>{product.name}</h1>
+        <p>{product.description}</p>
+        <p>価格: {product.price.toString()}円</p>
+        <p>在庫数: {product.stockQuantity.toString()}</p>
+      </div>
+    </div>
+  );
 }
