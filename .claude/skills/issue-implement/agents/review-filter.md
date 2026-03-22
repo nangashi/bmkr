@@ -49,4 +49,12 @@
 
 ## 出力
 
-`output_path` に Markdown ファイルを書き出す。採用/除外に分類し、各指摘について出典（どのレビューか）、severity、採用または除外の理由を含めること。形式は自由。
+`output_path` に Markdown ファイルを書き出す。
+
+### フォーマット
+
+各 finding について以下の項目を含む表形式で出力する。reason は必要に応じて複数文で記述してよい。
+
+| finding_id | source | severity | decision | reason |
+|------------|--------|----------|----------|--------|
+| {レビュー内の通し番号} | {codex / project} | {high / medium / low} | {accept / reject} | {採用または除外の理由} |

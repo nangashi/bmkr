@@ -23,6 +23,16 @@ lint-go:
     cd services/customer-mgmt && golangci-lint run ./...
     cd services/ec-site && golangci-lint run ./...
 
+# --- Test ---
+# 全テスト実行
+test: test-go
+
+# Go テスト
+test-go:
+    cd services/product-mgmt && go test ./...
+    cd services/customer-mgmt && go test ./...
+    cd services/ec-site && go test ./...
+
 # --- Secret Scan ---
 # シークレット検出 (gitleaks)
 secret-scan:

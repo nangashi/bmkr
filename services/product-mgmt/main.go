@@ -46,6 +46,11 @@ func main() {
 	path, handler := productv1connect.NewProductServiceHandler(&ProductServiceHandler{queries: queries})
 	e.Any(path+"*", echo.WrapHandler(handler))
 
+	// 管理画面ルーティング
+	adminHandler := NewAdminHandler(queries)
+	admin := e.Group("/admin")
+	admin.GET("/products", adminHandler.HandleProductList)
+
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: h2c.NewHandler(e, &http2.Server{}),
