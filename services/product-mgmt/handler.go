@@ -14,16 +14,28 @@ import (
 	db "github.com/nangashi/bmkr/services/product-mgmt/db/generated"
 )
 
+// productStore は ProductServiceHandler が必要とする DB 操作を定義する。
+// *db.Queries がこのインターフェースを満たす。
+// テスト時にモック実装へ差し替え可能にする。
+type productStore interface {
+	GetProduct(ctx context.Context, id int64) (db.Product, error)
+	CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.Product, error)
+	ListProducts(ctx context.Context) ([]db.Product, error)
+}
+
+// コンパイル時に *db.Queries が productStore を満たすことを保証する。
+var _ productStore = (*db.Queries)(nil)
+
 type ProductServiceHandler struct {
 	productv1connect.UnimplementedProductServiceHandler
-	queries *db.Queries
+	store productStore
 }
 
 func (h *ProductServiceHandler) CreateProduct(
 	ctx context.Context,
 	req *connect.Request[productv1.CreateProductRequest],
 ) (*connect.Response[productv1.CreateProductResponse], error) {
-	product, err := h.queries.CreateProduct(ctx, db.CreateProductParams{
+	product, err := h.store.CreateProduct(ctx, db.CreateProductParams{
 		Name:          req.Msg.Name,
 		Description:   req.Msg.Description,
 		Price:         req.Msg.Price,
@@ -42,7 +54,7 @@ func (h *ProductServiceHandler) GetProduct(
 	ctx context.Context,
 	req *connect.Request[productv1.GetProductRequest],
 ) (*connect.Response[productv1.GetProductResponse], error) {
-	product, err := h.queries.GetProduct(ctx, req.Msg.Id)
+	product, err := h.store.GetProduct(ctx, req.Msg.Id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("product not found"))
@@ -53,6 +65,22 @@ func (h *ProductServiceHandler) GetProduct(
 	return connect.NewResponse(&productv1.GetProductResponse{
 		Product: dbProductToProto(product),
 	}), nil
+}
+
+// ListProducts handles the ListProducts RPC.
+//
+// 動作:
+//   - store.ListProducts で全商品を ID 昇順で取得する（ページネーションなし）
+//   - 各 db.Product を dbProductToProto で protobuf メッセージに変換する
+//   - 商品が0件の場合、空の products スライスを持つレスポンスを返す（エラーにしない）
+//
+// エラー:
+//   - DB エラー時は connect.CodeInternal を返す（エラー情報を保持する）
+func (h *ProductServiceHandler) ListProducts(
+	ctx context.Context,
+	req *connect.Request[productv1.ListProductsRequest],
+) (*connect.Response[productv1.ListProductsResponse], error) {
+	panic("not implemented")
 }
 
 func dbProductToProto(p db.Product) *productv1.Product {

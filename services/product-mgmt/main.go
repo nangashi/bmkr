@@ -43,7 +43,7 @@ func main() {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	path, handler := productv1connect.NewProductServiceHandler(&ProductServiceHandler{queries: queries})
+	path, handler := productv1connect.NewProductServiceHandler(&ProductServiceHandler{store: queries})
 	e.Any(path+"*", echo.WrapHandler(handler))
 
 	// 管理画面ルーティング
