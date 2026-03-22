@@ -71,7 +71,9 @@ func (h *AdminHandler) HandleProductList(c echo.Context) error {
 
 ### 4. ビルド確認
 
-I/F定義が完了したら `go build` / `tsc --noEmit` でコンパイルが通ることを確認する。空実装でもコンパイルは通るべき。
+I/F定義が完了したら `go build ./...` / `tsc -b` でコンパイルが通ることを確認する。空実装でもコンパイルは通るべき。
+
+**注意:** TypeScript では `tsc --noEmit` ではなく `tsc -b` を使うこと。`tsc --noEmit` はルートの `tsconfig.json` のみを見るため、Project References 経由の `tsconfig.app.json`（`noUnusedLocals: true` 等）が適用されず、未使用インポートなどのエラーを見逃す。
 
 ---
 
