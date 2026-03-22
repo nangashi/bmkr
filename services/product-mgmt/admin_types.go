@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 // ProductItem は商品一覧テーブルの1行分のプレゼンテーション用の型。
 // DB 生成型 (db.Product) をテンプレートに直接渡さず、表示用に変換して使う。
 //
@@ -64,12 +62,6 @@ func (d ProductListData) NextPage() int {
 		return d.TotalPages
 	}
 	return d.CurrentPage + 1
-}
-
-// productListPagePath はページネーション用のパスを生成する。
-// page=1 のとき "/admin/products?page=1" を返す。
-func productListPagePath(page int) string {
-	return fmt.Sprintf("/admin/products?page=%d", page)
 }
 
 // defaultPerPage は商品一覧のデフォルト表示件数。
