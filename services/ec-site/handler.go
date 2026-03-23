@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -36,7 +36,7 @@ func (h *CartServiceHandler) GetCart(
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			log.Printf("created new cart (id=%d) for customer_id=%d", cart.ID, customerID)
+			// 動作: 正常系ログ（カート作成成功）を削除。ガイド基準「ハンドラ内は WARN 以上の異常系のみ」に従う
 		} else {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -50,14 +50,16 @@ func (h *CartServiceHandler) GetCart(
 
 	// Inter-service communication: fetch product info for each item (log only)
 	for _, item := range items {
-		resp, err := h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
+		// 動作: 正常系ログ（商品取得成功）を削除したため、resp を _ に変更
+		_, err := h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
 			Id: item.ProductID,
 		}))
 		if err != nil {
-			log.Printf("failed to get product (id=%d) from product-mgmt: %v", item.ProductID, err)
+			// 動作: 商品取得失敗時に slog.WarnContext で product_id と error をログ出力する
+			// フィールド規約: スネークケース（"product_id", "error"）
+			slog.WarnContext(ctx, "failed to get product", "product_id", item.ProductID, "error", err)
 			continue
 		}
-		log.Printf("fetched product from product-mgmt: id=%d name=%s price=%d", resp.Msg.Product.Id, resp.Msg.Product.Name, resp.Msg.Product.Price)
 	}
 
 	return connect.NewResponse(&ecv1.GetCartResponse{
