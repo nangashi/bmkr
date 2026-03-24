@@ -64,7 +64,6 @@ func (r *mockRow) Scan(dest ...interface{}) error {
 type mockRows struct {
 	items   []mockRowData
 	current int
-	closed  bool
 }
 
 type mockRowData struct {

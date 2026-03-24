@@ -28,8 +28,6 @@ func main() {
 
 	pool, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
-		// 動作: DB接続失敗時に slog.Error でエラーをログ出力し、os.Exit(1) でプロセスを終了する
-		// フィールド規約: スネークケース（"error"）
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
@@ -54,12 +52,8 @@ func main() {
 		Handler: h2c.NewHandler(e, &http2.Server{}),
 	}
 
-	// 動作: サーバー起動時に slog.Info でサービス名とポート番号をログ出力する
-	// フィールド規約: スネークケース（"port"）
 	slog.Info("customer-mgmt service starting", "port", port)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		// 動作: サーバー起動失敗時に slog.Error でエラーをログ出力し、os.Exit(1) でプロセスを終了する
-		// フィールド規約: スネークケース（"error"）
 		slog.Error("failed to start server", "error", err)
 		os.Exit(1)
 	}

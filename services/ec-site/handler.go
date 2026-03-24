@@ -36,7 +36,6 @@ func (h *CartServiceHandler) GetCart(
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			// 動作: 正常系ログ（カート作成成功）を削除。ガイド基準「ハンドラ内は WARN 以上の異常系のみ」に従う
 		} else {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -50,13 +49,10 @@ func (h *CartServiceHandler) GetCart(
 
 	// Inter-service communication: fetch product info for each item (log only)
 	for _, item := range items {
-		// 動作: 正常系ログ（商品取得成功）を削除したため、resp を _ に変更
 		_, err := h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
 			Id: item.ProductID,
 		}))
 		if err != nil {
-			// 動作: 商品取得失敗時に slog.WarnContext で product_id と error をログ出力する
-			// フィールド規約: スネークケース（"product_id", "error"）
 			slog.WarnContext(ctx, "failed to get product", "product_id", item.ProductID, "error", err)
 			continue
 		}
