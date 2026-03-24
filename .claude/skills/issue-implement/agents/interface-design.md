@@ -51,25 +51,27 @@ type ProductItem struct {
 シグネチャを書き、本体は空実装（`panic("not implemented")` や `return nil`）にする。動作コメントで正常系・異常系の振る舞いを記述する。
 
 ```go
-// HandleProductList handles GET /admin/products.
-//
-// 動作:
-//   - クエリパラメータ page（デフォルト: 1）をパース。不正値は 1 にフォールバック
-//   - CountProducts と ListProducts を errgroup で並列実行
-//   - 総ページ数を計算。page が超過したら最終ページにクランプし再フェッチ
-//   - HX-Request ヘッダの有無で分岐: HTMX → テーブルパーシャル、通常 → フルページ
-//
-// エラー:
-//   - DB エラー時は echo.NewHTTPError(500) を返す
-//   - page パラメータの不正値はエラーにせずデフォルト値にフォールバック
+// wip: HandleProductList handles GET /admin/products.
+// wip:
+// wip: 動作:
+// wip:   - クエリパラメータ page（デフォルト: 1）をパース。不正値は 1 にフォールバック
+// wip:   - CountProducts と ListProducts を errgroup で並列実行
+// wip:   - 総ページ数を計算。page が超過したら最終ページにクランプし再フェッチ
+// wip:   - HX-Request ヘッダの有無で分岐: HTMX → テーブルパーシャル、通常 → フルページ
+// wip:
+// wip: エラー:
+// wip:   - DB エラー時は echo.NewHTTPError(500) を返す
+// wip:   - page パラメータの不正値はエラーにせずデフォルト値にフォールバック
 func (h *AdminHandler) HandleProductList(c echo.Context) error {
     panic("not implemented")
 }
 ```
 
+動作コメントには `// wip:` プレフィックスを付けること。このマーカーにより Phase 3（テスト作成）が既存コメントと動作コメントを区別でき、Phase 4 のクリーンアップ対象を特定できる。
+
 この動作コメントが Phase 3（テスト作成）の入力になるので、正常系だけでなく、分岐・エッジケース・異常系も考慮して網羅的に記載する。テスト作成者はこのコメントと受け入れ条件からテストケースを導出する。
 
-この動作コメントは実装完了後に最終ゲートでドキュメントコメントに変換される。Phase 1 時点ではテスト導出に必要な網羅性を優先する。
+この動作コメントは実装完了後に Phase 4 の `wip:` クリーンアップで正式な godoc コメントに変換される。Phase 1 時点ではテスト導出に必要な網羅性を優先する。
 
 ### 4. ビルド確認
 
@@ -83,7 +85,7 @@ I/F定義が完了したら `go build ./...` / `tsc -b` でコンパイルが通
 
 ### 実装ガイドを読む
 
-`docs/guides/` 配下のガイドを全て読むこと。
+計画が特定のガイドを参照している場合は、そのガイドのみ読む。参照がない場合は `docs/guides/` 配下のガイドを全て読む。
 
 ### 周辺の既存コードを必ず読む
 
