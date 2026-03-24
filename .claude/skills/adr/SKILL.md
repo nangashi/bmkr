@@ -406,62 +406,17 @@ Chosen option: "{選択した選択肢}"
 
 ## チェックモード
 
-`/adr check` または「チェック」が選択された場合のフロー。読み取り専用の監査を行い、ファイル変更は行わない。
+`/adr check` または「チェック」が選択された場合のフロー。
 
-### Check Step 1: 全ADRの読み込み
+`bash scripts/adr-freshness-check.sh` を Bash で実行し、結果をそのまま表示する。
 
-`docs/adr/*.md` を Glob で検索し、すべての ADR を Read で読み込む。各 ADR から以下を抽出する:
-- 番号・タイトル
-- `status`
-- `last-validated`（存在しない場合は `date` をフォールバックとして使用）
-- `review-interval`（存在する場合）
-- Prerequisites セクションの内容
-- Accepted Tradeoffs セクションの内容
+スクリプトは以下を行う:
+- `docs/adr/*.md` の frontmatter から `status`, `last-validated`（フォールバック: `date`）, `review-interval` を抽出
+- `status: withdrawn` はスキップ
+- `last-validated` から今日までの経過日数を計算し、閾値（`review-interval` またはデフォルト 90 日）を超えた ADR を `STALE` として報告
+- STALE な ADR がある場合は exit 1
 
-### Check Step 2: 鮮度チェック
-
-各 ADR について:
-- `status: withdrawn` の ADR はスキップする
-- `last-validated` から本日までの経過日数を計算する
-- `review-interval` フィールドがあればそちらを閾値として使用、なければデフォルト 90日
-- 閾値を超えた ADR を「⚠️ 要レビュー」として記録する
-
-### Check Step 3: 依存整合性チェック
-
-各 ADR の Prerequisites セクションに記載された依存先 ADR の status を確認する:
-- 依存先が `withdrawn` になっている場合、警告を出す
-- 依存先が `accepted` または `implemented` であれば OK
-
-### Check Step 4: 監視対象トレードオフの抽出
-
-各 ADR の Accepted Tradeoffs セクションから、監視対象の記述（「監視すべき」「注視」「ウォッチ」「watch」「monitor」等）を抽出して報告する。
-
-### Check Step 5: 結果の報告
-
-以下のフォーマットでユーザーに報告する:
-
-```
-## ADR 監査結果
-
-### 鮮度チェック
-| ADR | last-validated | 経過日数 | 状態 |
-|-----|---------------|---------|------|
-| 0001 | 2026-03-15 | 4日 | ✅ OK |
-| 0012 | 2026-03-18 | 95日 | ⚠️ 要レビュー |
-
-### 依存整合性チェック
-| ADR | 依存先 | 問題 |
-|-----|--------|------|
-| 0005 | ADR-0003 | ✅ OK |
-| 0005 | ADR-0001 | ⚠️ withdrawn |
-
-### 監視対象トレードオフ
-| ADR | 内容 |
-|-----|------|
-| 0012 | Betterleaksの成熟度を監視すべき |
-```
-
-問題がない項目もすべて表示し、全体像を把握できるようにする。ファイル変更は一切行わない。
+STALE な ADR が見つかった場合、ユーザーに `/adr re-evaluate NNNN` での再評価を案内する。
 
 ---
 
