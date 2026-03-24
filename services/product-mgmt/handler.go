@@ -11,7 +11,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	productv1 "github.com/nangashi/bmkr/gen/go/product/v1"
-	"github.com/nangashi/bmkr/gen/go/product/v1/productv1connect"
 	db "github.com/nangashi/bmkr/services/product-mgmt/db/generated"
 )
 
@@ -29,7 +28,6 @@ type productStore interface {
 var _ productStore = (*db.Queries)(nil)
 
 type ProductServiceHandler struct {
-	productv1connect.UnimplementedProductServiceHandler
 	store productStore
 }
 
