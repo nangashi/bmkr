@@ -97,11 +97,19 @@ func (r *mockRows) Conn() *pgx.Conn                              { return nil }
 // mockProductServiceClient は productv1connect.ProductServiceClient のテスト用モック。
 type mockProductServiceClient struct {
 	productv1connect.ProductServiceClient
-	GetProductFn func(ctx context.Context, req *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error)
+	GetProductFn       func(ctx context.Context, req *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error)
+	BatchGetProductsFn func(ctx context.Context, req *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error)
 }
 
 func (m *mockProductServiceClient) GetProduct(ctx context.Context, req *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error) {
 	return m.GetProductFn(ctx, req)
+}
+
+func (m *mockProductServiceClient) BatchGetProducts(ctx context.Context, req *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
+	if m.BatchGetProductsFn != nil {
+		return m.BatchGetProductsFn(ctx, req)
+	}
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
 }
 
 func (m *mockProductServiceClient) CreateProduct(_ context.Context, _ *connect.Request[productv1.CreateProductRequest]) (*connect.Response[productv1.CreateProductResponse], error) {
@@ -279,7 +287,7 @@ func TestGetCart_ProductFetchFailure_LogsWarn(t *testing.T) {
 
 	productErr := errors.New("service unavailable")
 	client := &mockProductServiceClient{
-		GetProductFn: func(_ context.Context, _ *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error) {
+		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
 			return nil, productErr
 		},
 	}
@@ -305,16 +313,12 @@ func TestGetCart_ProductFetchFailure_LogsWarn(t *testing.T) {
 		t.Fatal("expected at least one log record, got none")
 	}
 
-	// 各商品取得失敗について WARN ログが出ること（2アイテム = 2回）
+	// BatchGetProducts 失敗で WARN ログが1回出ること
 	warnCount := 0
 	for _, rec := range *records {
-		if rec.Level == slog.LevelWarn && rec.Message == "failed to get product" {
+		if rec.Level == slog.LevelWarn && rec.Message == "failed to batch get products" {
 			warnCount++
 
-			// product_id フィールドがスネークケースで含まれること
-			if _, ok := rec.Attrs["product_id"]; !ok {
-				t.Error("WARN log should contain 'product_id' attribute")
-			}
 			// error フィールドが含まれること
 			if _, ok := rec.Attrs["error"]; !ok {
 				t.Error("WARN log should contain 'error' attribute")
@@ -322,8 +326,8 @@ func TestGetCart_ProductFetchFailure_LogsWarn(t *testing.T) {
 		}
 	}
 
-	if warnCount != 2 {
-		t.Errorf("expected 2 WARN logs for 'failed to get product', got %d", warnCount)
+	if warnCount != 1 {
+		t.Errorf("expected 1 WARN log for 'failed to batch get products', got %d", warnCount)
 	}
 }
 
@@ -345,7 +349,7 @@ func TestGetCart_ProductFetchFailure_LogFieldValues(t *testing.T) {
 
 	productErr := errors.New("connection refused")
 	client := &mockProductServiceClient{
-		GetProductFn: func(_ context.Context, _ *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error) {
+		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
 			return nil, productErr
 		},
 	}
@@ -364,13 +368,6 @@ func TestGetCart_ProductFetchFailure_LogFieldValues(t *testing.T) {
 	}
 
 	rec := (*records)[0]
-
-	// product_id の値が 42 であること
-	if pid, ok := rec.Attrs["product_id"]; !ok {
-		t.Error("missing 'product_id' attribute")
-	} else if pid != int64(42) {
-		t.Errorf("product_id = %v, want 42", pid)
-	}
 
 	// error の値が productErr であること
 	if errVal, ok := rec.Attrs["error"]; !ok {
@@ -396,8 +393,8 @@ func TestGetCart_NewCartNormalFlow_NoLogs(t *testing.T) {
 	queries := db.New(scenario.newDBTX())
 
 	client := &mockProductServiceClient{
-		GetProductFn: func(_ context.Context, _ *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error) {
-			return connect.NewResponse(&productv1.GetProductResponse{}), nil
+		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
+			return connect.NewResponse(&productv1.BatchGetProductsResponse{}), nil
 		},
 	}
 
@@ -440,8 +437,8 @@ func TestGetCart_ExistingCart_NoLogs(t *testing.T) {
 	queries := db.New(scenario.newDBTX())
 
 	client := &mockProductServiceClient{
-		GetProductFn: func(_ context.Context, _ *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error) {
-			return connect.NewResponse(&productv1.GetProductResponse{}), nil
+		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
+			return connect.NewResponse(&productv1.BatchGetProductsResponse{}), nil
 		},
 	}
 

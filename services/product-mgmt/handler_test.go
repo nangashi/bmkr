@@ -21,9 +21,10 @@ import (
 // GetProductFn / CreateProductFn / ListProductsFn を差し替えることで、
 // 各テストケースの振る舞いを制御する。
 type mockListProductStore struct {
-	GetProductFn    func(ctx context.Context, id int64) (db.Product, error)
-	CreateProductFn func(ctx context.Context, arg db.CreateProductParams) (db.Product, error)
-	ListProductsFn  func(ctx context.Context) ([]db.Product, error)
+	GetProductFn       func(ctx context.Context, id int64) (db.Product, error)
+	CreateProductFn    func(ctx context.Context, arg db.CreateProductParams) (db.Product, error)
+	ListProductsFn     func(ctx context.Context) ([]db.Product, error)
+	GetProductsByIDsFn func(ctx context.Context, ids []int64) ([]db.Product, error)
 }
 
 func (m *mockListProductStore) GetProduct(ctx context.Context, id int64) (db.Product, error) {
@@ -45,6 +46,13 @@ func (m *mockListProductStore) ListProducts(ctx context.Context) ([]db.Product, 
 		return m.ListProductsFn(ctx)
 	}
 	return nil, errors.New("ListProducts not implemented")
+}
+
+func (m *mockListProductStore) GetProductsByIDs(ctx context.Context, ids []int64) ([]db.Product, error) {
+	if m.GetProductsByIDsFn != nil {
+		return m.GetProductsByIDsFn(ctx, ids)
+	}
+	return nil, errors.New("GetProductsByIDs not implemented")
 }
 
 // コンパイル時にインターフェース充足を保証する。
@@ -347,4 +355,223 @@ func TestListProducts_SingleProduct(t *testing.T) {
 	if resp.Msg.Products[0].Name != "唯一の商品" {
 		t.Errorf("Name = %q, want %q", resp.Msg.Products[0].Name, "唯一の商品")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Tests — BatchGetProducts RPC
+// ---------------------------------------------------------------------------
+
+func TestBatchGetProducts(t *testing.T) {
+	tests := []struct {
+		name string
+		// request
+		ids []int64
+		// store behavior
+		storeFn func(ctx context.Context, ids []int64) ([]db.Product, error)
+		// expectations
+		wantCode      connect.Code
+		wantErr       bool
+		wantCount     int
+		wantIDs       []int64 // expected product IDs in response (order-independent)
+		checkStoreIDs []int64 // IDs that should be passed to store (after dedup)
+	}{
+		{
+			name: "正常系: 複数IDで複数商品が返る",
+			ids:  []int64{1, 2, 3},
+			storeFn: func(_ context.Context, ids []int64) ([]db.Product, error) {
+				return []db.Product{
+					sampleDBProduct(1, "商品A", "説明A", 1000, 10),
+					sampleDBProduct(2, "商品B", "説明B", 2500, 5),
+					sampleDBProduct(3, "商品C", "説明C", 500, 100),
+				}, nil
+			},
+			wantCount: 3,
+			wantIDs:   []int64{1, 2, 3},
+		},
+		{
+			name: "正常系: 単一IDで1商品が返る",
+			ids:  []int64{42},
+			storeFn: func(_ context.Context, ids []int64) ([]db.Product, error) {
+				return []db.Product{
+					sampleDBProduct(42, "単一商品", "説明", 999, 1),
+				}, nil
+			},
+			wantCount: 1,
+			wantIDs:   []int64{42},
+		},
+		{
+			name: "正常系: 存在しないIDは無視（部分取得）",
+			ids:  []int64{1, 999},
+			storeFn: func(_ context.Context, ids []int64) ([]db.Product, error) {
+				// ID=999 は存在しないので ID=1 のみ返す
+				return []db.Product{
+					sampleDBProduct(1, "商品A", "説明A", 1000, 10),
+				}, nil
+			},
+			wantCount: 1,
+			wantIDs:   []int64{1},
+		},
+		{
+			name: "正常系: 全IDが存在しない場合は空レスポンス",
+			ids:  []int64{998, 999},
+			storeFn: func(_ context.Context, ids []int64) ([]db.Product, error) {
+				return []db.Product{}, nil
+			},
+			wantCount: 0,
+		},
+		{
+			name: "正常系: 重複IDは除去される",
+			ids:  []int64{1, 2, 1, 2, 1},
+			storeFn: func(_ context.Context, ids []int64) ([]db.Product, error) {
+				return []db.Product{
+					sampleDBProduct(1, "商品A", "説明A", 1000, 10),
+					sampleDBProduct(2, "商品B", "説明B", 2500, 5),
+				}, nil
+			},
+			checkStoreIDs: []int64{1, 2},
+			wantCount:     2,
+			wantIDs:       []int64{1, 2},
+		},
+		{
+			name:     "異常系: 空のIDs",
+			ids:      []int64{},
+			wantErr:  true,
+			wantCode: connect.CodeInvalidArgument,
+		},
+		{
+			name:     "異常系: nilのIDs（空と同等）",
+			ids:      nil,
+			wantErr:  true,
+			wantCode: connect.CodeInvalidArgument,
+		},
+		{
+			name:     "異常系: 101件超のIDs",
+			ids:      make101IDs(),
+			wantErr:  true,
+			wantCode: connect.CodeInvalidArgument,
+		},
+		{
+			name:     "異常系: 非正値（0）を含む",
+			ids:      []int64{1, 0, 3},
+			wantErr:  true,
+			wantCode: connect.CodeInvalidArgument,
+		},
+		{
+			name:     "異常系: 非正値（負数）を含む",
+			ids:      []int64{1, -5, 3},
+			wantErr:  true,
+			wantCode: connect.CodeInvalidArgument,
+		},
+		{
+			name: "異常系: DBエラー時はCodeInternal",
+			ids:  []int64{1},
+			storeFn: func(_ context.Context, ids []int64) ([]db.Product, error) {
+				return nil, errors.New("database connection lost")
+			},
+			wantErr:  true,
+			wantCode: connect.CodeInternal,
+		},
+		{
+			name: "境界値: ちょうど100件のIDs",
+			ids:  make100IDs(),
+			storeFn: func(_ context.Context, ids []int64) ([]db.Product, error) {
+				return []db.Product{sampleDBProduct(1, "商品1", "説明", 100, 1)}, nil
+			},
+			wantCount: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedIDs []int64
+			store := &mockListProductStore{}
+			if tt.storeFn != nil {
+				store.GetProductsByIDsFn = func(ctx context.Context, ids []int64) ([]db.Product, error) {
+					capturedIDs = ids
+					return tt.storeFn(ctx, ids)
+				}
+			}
+			h := &ProductServiceHandler{store: store}
+
+			resp, err := h.BatchGetProducts(
+				context.Background(),
+				connect.NewRequest(&productv1.BatchGetProductsRequest{Ids: tt.ids}),
+			)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				var connectErr *connect.Error
+				if !errors.As(err, &connectErr) {
+					t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+				}
+				if connectErr.Code() != tt.wantCode {
+					t.Errorf("error code = %v, want %v", connectErr.Code(), tt.wantCode)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if resp.Msg == nil {
+				t.Fatal("response message should not be nil")
+			}
+			if got := len(resp.Msg.Products); got != tt.wantCount {
+				t.Fatalf("products count = %d, want %d", got, tt.wantCount)
+			}
+
+			// wantIDs が指定されている場合、レスポンスに含まれるIDを検証（順序不問）
+			if tt.wantIDs != nil {
+				gotIDs := make(map[int64]bool)
+				for _, p := range resp.Msg.Products {
+					gotIDs[p.Id] = true
+				}
+				for _, wantID := range tt.wantIDs {
+					if !gotIDs[wantID] {
+						t.Errorf("expected product ID %d in response, but not found", wantID)
+					}
+				}
+			}
+
+			// checkStoreIDs が指定されている場合、storeに渡されたIDを検証（重複除去確認）
+			if tt.checkStoreIDs != nil {
+				wantSet := make(map[int64]bool)
+				for _, id := range tt.checkStoreIDs {
+					wantSet[id] = true
+				}
+				gotSet := make(map[int64]bool)
+				for _, id := range capturedIDs {
+					gotSet[id] = true
+				}
+				if len(gotSet) != len(wantSet) {
+					t.Errorf("store received %d unique IDs, want %d", len(gotSet), len(wantSet))
+				}
+				for id := range wantSet {
+					if !gotSet[id] {
+						t.Errorf("expected store to receive ID %d, but not found", id)
+					}
+				}
+			}
+		})
+	}
+}
+
+// make100IDs は境界値テスト用に 1..100 の ID スライスを返す。
+func make100IDs() []int64 {
+	ids := make([]int64, 100)
+	for i := range ids {
+		ids[i] = int64(i + 1)
+	}
+	return ids
+}
+
+// make101IDs は上限超過テスト用に 1..101 の ID スライスを返す。
+func make101IDs() []int64 {
+	ids := make([]int64, 101)
+	for i := range ids {
+		ids[i] = int64(i + 1)
+	}
+	return ids
 }

@@ -21,3 +21,8 @@ SELECT id, name, description, price, stock_quantity, created_at, updated_at
 FROM products
 ORDER BY id
 LIMIT $1 OFFSET $2;
+
+-- name: GetProductsByIDs :many
+SELECT id, name, description, price, stock_quantity, created_at, updated_at
+FROM products
+WHERE id = ANY($1::bigint[]);

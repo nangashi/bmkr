@@ -51,14 +51,18 @@ func (h *CartServiceHandler) GetCart(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	// Inter-service communication: fetch product info for each item (log only)
-	for _, item := range items {
-		_, err := h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
-			Id: item.ProductID,
+	// Fetch product info in batch (log only)
+	if len(items) > 0 {
+		productIDs := make([]int64, len(items))
+		for i, item := range items {
+			productIDs[i] = item.ProductID
+		}
+
+		_, err := h.productClient.BatchGetProducts(ctx, connect.NewRequest(&productv1.BatchGetProductsRequest{
+			Ids: productIDs,
 		}))
 		if err != nil {
-			slog.WarnContext(ctx, "failed to get product", "product_id", item.ProductID, "error", err)
-			continue
+			slog.WarnContext(ctx, "failed to batch get products", "error", err)
 		}
 	}
 
