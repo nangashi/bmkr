@@ -29,6 +29,100 @@ message GetCartResponse {
   Cart cart = 1;
 }
 
+message AddItemRequest {
+  int64 customer_id = 1;
+  int64 product_id = 2;
+  int32 quantity = 3;
+}
+
+message AddItemResponse {
+  Cart cart = 1;
+}
+
+message RemoveItemRequest {
+  int64 customer_id = 1;
+  int64 item_id = 2;
+}
+
+message RemoveItemResponse {
+  Cart cart = 1;
+}
+
+message UpdateQuantityRequest {
+  int64 customer_id = 1;
+  int64 item_id = 2;
+  int32 quantity = 3;
+}
+
+message UpdateQuantityResponse {
+  Cart cart = 1;
+}
+
 service CartService {
   rpc GetCart(GetCartRequest) returns (GetCartResponse);
+
+  // AddItem adds a product to the customer's cart.
+  //
+  // Pre:
+  //   - customer_id must be a positive integer
+  //   - product_id must exist in the ProductService
+  //   - quantity must be >= 1
+  //
+  // Post:
+  //   - if cart does not exist for customer_id, a new cart is created
+  //   - if the product is not yet in the cart, a new cart_item is inserted
+  //   - if the product is already in the cart, quantity is added to the existing quantity (UPSERT)
+  //   - response contains the full cart with all items
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — customer_id <= 0, product_id <= 0, or quantity < 1
+  //   NOT_FOUND        — product_id does not exist in the ProductService
+  //
+  // Merges:
+  //   同一 product_id が既にカートにある場合は quantity を加算する
+  //
+  // Defers:
+  //   在庫上限チェックは行わない（PlaceOrder 時に AllocateStock で実施）
+  rpc AddItem(AddItemRequest) returns (AddItemResponse);
+
+  // RemoveItem removes a cart item from the customer's cart.
+  //
+  // Pre:
+  //   - customer_id must be a positive integer
+  //   - item_id must be a positive integer
+  //   - customer_id must have an existing cart
+  //   - item_id must exist in the customer's cart
+  //
+  // Post:
+  //   - the specified cart_item is deleted
+  //   - response contains the full cart with remaining items
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — customer_id <= 0 or item_id <= 0
+  //   NOT_FOUND        — cart does not exist for customer_id, or item_id does not exist in the cart
+  //
+  // Defers:
+  //   カートが空になった場合のカート自体の削除は行わない
+  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse);
+
+  // UpdateQuantity updates the quantity of a cart item.
+  //
+  // Pre:
+  //   - customer_id must be a positive integer
+  //   - item_id must be a positive integer
+  //   - customer_id must have an existing cart
+  //   - item_id must exist in the customer's cart
+  //   - quantity must be >= 1
+  //
+  // Post:
+  //   - the cart_item's quantity is replaced (not added) with the new value
+  //   - response contains the full cart with all items
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — customer_id <= 0, item_id <= 0, or quantity < 1
+  //   NOT_FOUND        — cart does not exist for customer_id, or item_id does not exist in the cart
+  //
+  // Defers:
+  //   在庫上限チェックは行わない（PlaceOrder 時に AllocateStock で実施）
+  rpc UpdateQuantity(UpdateQuantityRequest) returns (UpdateQuantityResponse);
 }

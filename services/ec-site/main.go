@@ -92,7 +92,7 @@ func main() {
 	})
 
 	cartPath, cartHandler := ecv1connect.NewCartServiceHandler(
-		&CartServiceHandler{queries: queries, productClient: productClient},
+		&CartServiceHandler{q: queries, productClient: productClient},
 		connect.WithInterceptors(newLoggingInterceptor()),
 	)
 	e.Any(cartPath+"*", echo.WrapHandler(cartHandler))

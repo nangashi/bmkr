@@ -1,13 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { ProductService, type Product } from "@bmkr/bff/gen/product/v1/product_pb.js";
+import { CartService } from "@bmkr/bff/gen/ec/v1/cart_pb.js";
 
 const transport = createConnectTransport({
   baseUrl: "/",
 });
 const client = createClient(ProductService, transport);
+const cartClient = createClient(CartService, transport);
+
+// wip: 固定の customer_id（認証スコープ外のため）
+const CUSTOMER_ID = BigInt(1);
 
 // ProductDetailPage は商品詳細ページを表示するコンポーネント。
 //
@@ -28,6 +33,31 @@ export function ProductDetailPage(): React.ReactElement {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartMessage, setCartMessage] = useState<string | null>(null);
+
+  // wip: handleAddToCart はカートに商品を追加するハンドラ
+  //   - cartClient.addItem({ customerId: CUSTOMER_ID, productId: product.id, quantity: 1 }) を呼び出す
+  //   - 成功時、「カートに追加しました」メッセージを表示する
+  //   - エラー時、エラーメッセージを表示する
+  //   - 呼び出し中はボタンを無効化する（addingToCart state）
+  const handleAddToCart = useCallback(async () => {
+    if (product === null) return;
+    setAddingToCart(true);
+    setCartMessage(null);
+    try {
+      await cartClient.addItem({
+        customerId: CUSTOMER_ID,
+        productId: product.id,
+        quantity: 1,
+      });
+      setCartMessage("カートに追加しました");
+    } catch (err) {
+      setCartMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAddingToCart(false);
+    }
+  }, [product]);
 
   useEffect(() => {
     if (id === undefined) {
@@ -109,6 +139,12 @@ export function ProductDetailPage(): React.ReactElement {
         <p>{product.description}</p>
         <p>価格: {product.price.toString()}円</p>
         <p>在庫数: {product.stockQuantity.toString()}</p>
+        {/* wip: カートに追加ボタン。クリック時に handleAddToCart を呼び出す。追加中はボタンを無効化する。 */}
+        <button onClick={() => void handleAddToCart()} disabled={addingToCart}>
+          {addingToCart ? "追加中..." : "カートに追加"}
+        </button>
+        {cartMessage !== null && <p>{cartMessage}</p>}
+        <Link to="/cart">カートを見る</Link>
       </div>
     </div>
   );
