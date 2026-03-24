@@ -16,6 +16,7 @@ globs: services/**/*_test.go
 
 - **インターフェース DI 済み**（例: `AdminProductStore`）→ そのインターフェースをモック。`services/product-mgmt/admin_handler_test.go` を参照
 - **`*db.Queries` 直接依存** → `db.DBTX` レベルのモック（`mockDBTX`, `mockRow`, `mockRows` 等）を新規作成しない。Scan のフィールド順序に依存するモックは sqlc 生成コードの内部構造に密結合し、壊れやすい
+- **Connect `AnyRequest`/`AnyResponse` に依存する interceptor** → `httptest.NewServer` + `Unimplemented*Handler` 埋め込み + 生成クライアント経由でテストする。`AnyRequest`/`AnyResponse` は非公開メソッドを含み外部パッケージからモック実装できない。`services/ec-site/logging_interceptor_test.go` を参照
 
 `*db.Queries` に直接依存するハンドラのテストが必要な場合は、先にインターフェースを抽出するか、静的解析テストで代替する。
 
