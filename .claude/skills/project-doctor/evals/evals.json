@@ -1,0 +1,45 @@
+{
+  "skill_name": "project-doctor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/project-doctor full",
+      "expected_output": "全8チェックを Phase 1→2→3 の順で実行し、.output/project-doctor-report.md にサマリレポートを出力する。Phase 1 の結果が Phase 2 のフィルタに反映される。",
+      "files": [],
+      "assertions": [
+        {"id": "report_exists", "text": "レポートファイルが出力されている"},
+        {"id": "all_checks_covered", "text": "全8チェック（1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4, 3-1）がレポートに記載されている"},
+        {"id": "summary_table", "text": "サマリテーブルに Phase/チェック名/結果/指摘数 の列が含まれている"},
+        {"id": "severity_sections", "text": "Critical / Warning / Info のいずれかの重要度セクションがある"},
+        {"id": "action_items", "text": "修正アクションの提案セクションがある"},
+        {"id": "phase_dependency", "text": "Phase 2 で Phase 1 結果への言及がある"},
+        {"id": "adr_freshness_correct", "text": "全ADRの last-validated(2026-03-15) から7日経過 → 90日未満で OK と判定されている"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/project-doctor phase1",
+      "expected_output": "Phase 1 の 3 チェック（ADR鮮度、ガイド陳腐化、内部リンク整合性）のみを並列実行し、レポートを出力する。Phase 2-3 は実行されない。",
+      "files": [],
+      "assertions": [
+        {"id": "report_exists", "text": "レポートファイルが出力されている"},
+        {"id": "phase1_checks_present", "text": "Check 1-1, 1-2, 1-3 の結果がすべて含まれている"},
+        {"id": "no_phase2_phase3", "text": "Phase 2, Phase 3 のチェック結果が含まれていない"},
+        {"id": "adr_freshness_correct", "text": "全ADRの last-validated(2026-03-15) から7日経過 → 90日未満で OK と判定されている"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/project-doctor 2-3",
+      "expected_output": "Check 2-3（C4概要ドリフト）のみを実行し、c4_overview.md と実装の差分をレポートする。Phase 1 結果がないため全ドキュメントを健全として扱う。",
+      "files": [],
+      "assertions": [
+        {"id": "report_exists", "text": "レポートファイルが出力されている"},
+        {"id": "only_check_23", "text": "Check 2-3（C4概要ドリフト）のみが実行されている"},
+        {"id": "file_mapping_verified", "text": "File Mapping テーブルのディレクトリ・エントリポイントの存在確認結果が記載されている"},
+        {"id": "port_check", "text": "ポート番号の照合結果が記載されている"},
+        {"id": "ory_hydra_drift", "text": "Ory Hydra がC4図に記載されている点について何らかの検出・言及がある"}
+      ]
+    }
+  ]
+}
