@@ -19,7 +19,7 @@ git diff HEAD
    - .claude/skills/issue-implement/references/review-testability.md
 2. 各観点の Step 1（Analysis）に従い、対象コードの構造を把握してください
 3. 各観点の Step 2（Findings）に従い、指摘を導出してください
-4. 必要に応じて、変更対象ファイルの周辺コード、docs/adr/、docs/guides/ も参照してください
+4. 必要に応じて、変更対象ファイルの周辺コード、docs/adr/、docs/guides/review/ も参照してください
 
 ## 出力
 結果を .output/issue-implement/{issue_number}/review-design.md に書き出してください。

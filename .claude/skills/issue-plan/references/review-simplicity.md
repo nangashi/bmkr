@@ -8,8 +8,7 @@
 ### マッピング対象
 - 計画の各ステップのゴール・外部契約・制約
 - 計画の「変更ファイル一覧」で新規作成されるファイル/ディレクトリ
-- `docs/guides/architecture/over-abstraction.md`（存在すれば）
-- `docs/guides/architecture/over-externalization.md`（存在すれば）
+- `docs/guides/review/` 配下のアンチパターンガイド
 - 変更対象と同一サービス内の既存コード構成
 
 ### 各項目について記録すること
@@ -21,8 +20,7 @@
 ## Step 2: Findings（分析結果から指摘を導出する）
 
 ### 指摘とする基準
-- `docs/guides/architecture/over-abstraction.md` のアンチパターンに該当する設計（存在すれば参照）
-- `docs/guides/architecture/over-externalization.md` のアンチパターンに該当する設計（存在すれば参照）
+- `docs/guides/review/` 配下のアンチパターンに該当する設計
 - 標準ライブラリやプロジェクト既存の仕組みで済むのに新しい依存を追加している
 - 既存の同種機能と比較して明らかに過剰な構成（例: 既存が 1 ファイルで実現しているのに 3 層に分割）
 - 受け入れ条件を満たすもっとシンプルな方法が存在する

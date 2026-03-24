@@ -38,9 +38,9 @@ Skill ツールで `/adr check` を実行し、結果をそのまま Phase 1 レ
 - ✅ 健全: 鮮度 OK、依存先も正常
 - ⚠️ 要レビュー: 鮮度超過 or 依存先に問題あり
 
-### Check 1-2: ガイド陳腐化チェック
+### Check 1-2: ガイド・ルール陳腐化チェック
 
-`docs/guides/` 配下の全ガイドを読み、以下を検証する:
+`docs/guides/` 配下の全ガイドおよび `.claude/rules/` 配下の全ルールを読み、以下を検証する:
 
 1. **コード例の参照先が存在するか** — ガイド内のコード例に含まれるパッケージ名・型名・関数名が現在のコードベースに存在するか Grep で確認する。ガイドの `scope` frontmatter に記載されたディレクトリに絞って検索する
 2. **scope のディレクトリが存在するか** — frontmatter `scope` の値（backend, admin-ui, frontend 等）に対応するサービスディレクトリが存在するか Glob で確認する
@@ -60,7 +60,7 @@ Skill ツールで `/adr check` を実行し、結果をそのまま Phase 1 レ
 1. **Markdown リンクの検証** — `[text](path)` 形式のリンクで、相対パスの参照先ファイルが存在するか
 2. **ADR 間の相互参照** — 本文中の `ADR-NNNN` 形式の参照に対応する ADR ファイルが `docs/adr/` に存在するか
 3. **frontmatter の相互参照** — `superseded-by` や依存先 ADR 番号が実在するか
-4. **CLAUDE.md からの参照** — CLAUDE.md に記載されたパス（`docs/c4_overview.md`, `docs/adr/`, `docs/guides/` 等）が存在するか
+4. **CLAUDE.md からの参照** — CLAUDE.md に記載されたパス（`docs/c4_overview.md`, `docs/adr/`, `docs/guides/`, `.claude/rules/` 等）が存在するか
 
 ---
 
@@ -137,7 +137,7 @@ Phase 1-2 とは独立して実行可能。
 
 ### Check 3-1: CLAUDE.md 正確性チェック
 
-1. **参照パスの検証** — CLAUDE.md 内の全パス参照（`docs/c4_overview.md`, `docs/adr/`, `docs/guides/`, `.output/` 等）が存在するか Glob で確認
+1. **参照パスの検証** — CLAUDE.md 内の全パス参照（`docs/c4_overview.md`, `docs/adr/`, `docs/guides/`, `.claude/rules/`, `.output/` 等）が存在するか Glob で確認
 2. **コマンド参照の検証** — `just --list` を Bash で実行し、CLAUDE.md が参照するコマンドが有効か確認
 3. **スキル参照の検証** — CLAUDE.md で言及されているスキルが `.claude/skills/` に存在するか確認
 

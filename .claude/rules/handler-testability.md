@@ -1,9 +1,5 @@
 ---
-id: handler-testability
-category: testing
-scope: [backend, admin-ui]
-severity: high
-detectable_by_linter: false
+globs: services/**/handler*.go
 ---
 
 # Handler の DB 依存注入

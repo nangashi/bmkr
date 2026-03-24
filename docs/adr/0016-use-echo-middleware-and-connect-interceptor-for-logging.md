@@ -15,7 +15,7 @@ log/slog を採用し（ADR-0015）、ログ設計ガイドで canonical log lin
 * log/slog を採用済み (ADR-0015)
 * バックエンド API は Go (Echo) を使用する (ADR-0001)
 * サービス間通信に Connect RPC を採用している (ADR-0003)
-* ログ設計ガイド (docs/guides/go/logging-strategy.md) で canonical log line パターンが定義済み — RPC メソッド名、ステータス(ok/error)、duration_ms、request_id を含む1行ログ
+* ログ設計ガイド (docs/guides/implementation/logging-strategy.md) で canonical log line パターンが定義済み — RPC メソッド名、ステータス(ok/error)、duration_ms、request_id を含む1行ログ
 * product-mgmt は管理画面（templ + HTMX）も Echo ルートで提供している (ADR-0007)
 * 3サービスで同一の実装パターンを使う（統一性）
 * 将来の OpenTelemetry 統合を妨げない選択であること
