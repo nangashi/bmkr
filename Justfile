@@ -131,11 +131,12 @@ dev:
     trap 'kill 0' EXIT
     echo ""
     echo "=== bmkr dev services ==="
-    echo "  product-mgmt (admin): http://localhost:8081/admin/products"
+    echo "  product-mgmt (admin): http://localhost:7331/admin/products"
     echo "  ec-site (frontend):   http://localhost:5173"
     echo "========================="
     echo ""
-    (cd services/product-mgmt && go run .) &
+    (cd services/product-mgmt && templ generate --watch --proxy="http://localhost:8081" --open-browser=false) &
+    (cd services/product-mgmt && air) &
     (cd services/customer-mgmt && go run .) &
     (cd services/ec-site && go run .) &
     (cd services/bff && pnpm dev) &
