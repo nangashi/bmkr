@@ -2,7 +2,7 @@
 """セッションログからフェーズマーカーの所要時間を算出して表示する。
 
 Usage:
-    python3 scripts/session-time-report.py [SESSION_LOG_PATH]
+    python3 .claude/skills/issue-implement/scripts/session-time-report.py [SESSION_LOG_PATH]
 
 SESSION_LOG_PATH を省略した場合、CWD に対応するプロジェクトディレクトリから
 最新のセッションログを自動検出する。

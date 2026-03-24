@@ -398,7 +398,7 @@ Chosen option: "{選択した選択肢}"
 
 `/adr check` または「チェック」が選択された場合のフロー。
 
-`bash scripts/adr-freshness-check.sh` を Bash で実行し、結果をそのまま表示する。
+`bash .claude/skills/adr/scripts/adr-freshness-check.sh` を Bash で実行し、結果をそのまま表示する。
 
 スクリプトは以下を行う:
 - `docs/adr/*.md` の frontmatter から `status`, `last-validated`（フォールバック: `date`）, `review-interval` を抽出

@@ -287,7 +287,7 @@ Phase 4 が中断に至った場合、上記に加えて以下を分析する:
 Phase 6 完了後（または中断後）に実行する。セッションログからフェーズマーカーのタイムスタンプと turn_duration（ターンごとのアクティブ時間）を抽出し、フェーズごとの経過時間とアクティブ時間（ユーザー確認待ちを除く）を表示する。
 
 ```bash
-python3 scripts/session-time-report.py
+python3 .claude/skills/issue-implement/scripts/session-time-report.py
 ```
 
 スクリプトがエラーになった場合は「タイムレポートの生成に失敗しました」と表示してスキップする（スキルの完了を妨げない）。
