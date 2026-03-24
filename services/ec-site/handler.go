@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -36,7 +36,6 @@ func (h *CartServiceHandler) GetCart(
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			log.Printf("created new cart (id=%d) for customer_id=%d", cart.ID, customerID)
 		} else {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -50,14 +49,13 @@ func (h *CartServiceHandler) GetCart(
 
 	// Inter-service communication: fetch product info for each item (log only)
 	for _, item := range items {
-		resp, err := h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
+		_, err := h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
 			Id: item.ProductID,
 		}))
 		if err != nil {
-			log.Printf("failed to get product (id=%d) from product-mgmt: %v", item.ProductID, err)
+			slog.WarnContext(ctx, "failed to get product", "product_id", item.ProductID, "error", err)
 			continue
 		}
-		log.Printf("fetched product from product-mgmt: id=%d name=%s price=%d", resp.Msg.Product.Id, resp.Msg.Product.Name, resp.Msg.Product.Price)
 	}
 
 	return connect.NewResponse(&ecv1.GetCartResponse{
