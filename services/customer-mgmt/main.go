@@ -44,7 +44,7 @@ func main() {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	path, handler := customerv1connect.NewCustomerServiceHandler(&CustomerServiceHandler{queries: queries})
+	path, handler := customerv1connect.NewCustomerServiceHandler(&CustomerServiceHandler{store: queries})
 	e.Any(path+"*", echo.WrapHandler(handler))
 
 	server := &http.Server{
