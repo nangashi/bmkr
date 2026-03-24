@@ -126,7 +126,7 @@ Phase 1 で新しい型・インターフェースが定義されなかった場
 
 I/F定義のみを対象にレビューを実施する。`references/design-review.md`に従い、Codex CLI で 3 観点（型設計・エラー契約・テスト駆動性）のレビューを実行する。
 
-Codex の出力を採用判定サブエージェントに渡し、採用された指摘はメインエージェント（Opus）が直接 I/F定義を修正してから Phase 3 に進む。
+Codex の出力を Haiku モデルの採用判定サブエージェント（`model: haiku`）に渡し、採用された指摘はメインエージェント（Opus）が直接 I/F定義を修正してから Phase 3 に進む。
 
 ---
 
@@ -197,30 +197,14 @@ Phase 5 完了後、または Phase 4 中断後に実行する。セッション
 
 ### 6b. 生成精度の計測
 
-AI生成コードの品質を定量的に把握するため、以下を計測し Issue コメントに記録する。
+`agents/metrics-collector.md` を Read で読み込んだ Haiku モデルのサブエージェント（`model: haiku`）を起動し、メトリクスを計測して Issue コメントに記録する。データ抽出・テンプレート整形タスクのため Haiku で十分な精度が得られる。
 
-#### 計測項目
-
-1. **AI生成行数**: Phase 3 完了時点から最終コミットまでの `git diff --stat` で算出（`*.go`, `*.ts`, `*.tsx` 対象）
-2. **テスト通過率**: Phase 4 最終時点の pass_count / total_count（failure_log から引用）
-3. **実装試行回数**: Phase 4 の attempt 数（最大3 + ESCALATE 1）
-4. **ESCALATE 有無**: テスト/I/F 修正が発生したか
-
-#### 記録フォーマット
-
-Issue コメントに以下を投稿する:
-
-    <!-- issue-implement:metrics -->
-    ## 生成精度メトリクス
-
-    | 指標 | 値 |
-    |------|-----|
-    | AI生成行数（追加+削除） | {N} 行 |
-    | テスト通過率（Phase 4 最終） | {M}% |
-    | 実装試行回数 | {K} |
-    | ESCALATE | あり / なし |
-
-    計測時刻: {ISO 8601}
+サブエージェントに以下のパラメータを渡す:
+- `issue_number`: Issue 番号
+- `pass_count`: Phase 4 最終時点のテスト通過数
+- `total_count`: Phase 4 最終時点のテスト総数
+- `attempt_count`: Phase 4 の実装試行回数
+- `escalated`: ESCALATE が発生したか
 
 人間修正率（= 人間修正行数 / 全変更行数）は PR マージ後に確定するため、Phase 6 時点では記録しない。
 

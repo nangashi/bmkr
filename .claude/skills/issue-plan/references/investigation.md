@@ -6,7 +6,7 @@
 
 ## 共通: サブエージェントへの指示
 
-Agent ツール（subagent_type=general-purpose）で起動する。各サブエージェントへのプロンプトには以下を含める:
+Agent ツール（subagent_type=general-purpose, `model: sonnet`）で起動する。コードベース探索・リサーチタスクのため Sonnet で十分な精度が得られる（Anthropic公式のマルチエージェントリサーチパターンに準拠）。各サブエージェントへのプロンプトには以下を含める:
 
 - Issue 本文（構造化済み）
 - 作業ディレクトリパス
