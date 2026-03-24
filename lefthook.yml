@@ -7,5 +7,9 @@ pre-commit:
 
 pre-push:
   commands:
+    generate:
+      run: just generate
+      priority: 1
     lint:
       run: just lint
+      priority: 2
