@@ -293,7 +293,7 @@ func TestGetCart_ProductFetchFailure_LogsWarn(t *testing.T) {
 	}
 
 	handler := &CartServiceHandler{
-		queries:       queries,
+		q:             queries,
 		productClient: client,
 	}
 
@@ -355,7 +355,7 @@ func TestGetCart_ProductFetchFailure_LogFieldValues(t *testing.T) {
 	}
 
 	handler := &CartServiceHandler{
-		queries:       queries,
+		q:             queries,
 		productClient: client,
 	}
 
@@ -399,7 +399,7 @@ func TestGetCart_NewCartNormalFlow_NoLogs(t *testing.T) {
 	}
 
 	handler := &CartServiceHandler{
-		queries:       queries,
+		q:             queries,
 		productClient: client,
 	}
 
@@ -443,7 +443,7 @@ func TestGetCart_ExistingCart_NoLogs(t *testing.T) {
 	}
 
 	handler := &CartServiceHandler{
-		queries:       queries,
+		q:             queries,
 		productClient: client,
 	}
 

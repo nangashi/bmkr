@@ -8,6 +8,9 @@ export default defineConfig({
       "/product.v1.ProductService": {
         target: "http://localhost:3000",
       },
+      "/ec.v1.CartService": {
+        target: "http://localhost:3000",
+      },
     },
   },
 });
