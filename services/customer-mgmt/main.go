@@ -79,7 +79,7 @@ func main() {
 	})
 
 	path, handler := customerv1connect.NewCustomerServiceHandler(
-		&CustomerServiceHandler{queries: queries},
+		&CustomerServiceHandler{store: queries},
 		connect.WithInterceptors(newLoggingInterceptor()),
 	)
 	e.Any(path+"*", echo.WrapHandler(handler))
