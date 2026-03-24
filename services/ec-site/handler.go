@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -94,5 +95,6 @@ func pgTimestampToProto(ts pgtype.Timestamptz) *timestamppb.Timestamp {
 }
 
 func newProductServiceClient(baseURL string) productv1connect.ProductServiceClient {
-	return productv1connect.NewProductServiceClient(http.DefaultClient, baseURL)
+	httpClient := &http.Client{Timeout: 5 * time.Second}
+	return productv1connect.NewProductServiceClient(httpClient, baseURL)
 }
