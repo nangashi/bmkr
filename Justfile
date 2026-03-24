@@ -124,7 +124,3 @@ dev:
     (cd services/bff && pnpm dev) &
     (cd services/ec-site/frontend && pnpm dev) &
     wait
-
-# Ory Hydra OAuth 2.0 クライアント登録
-hydra-setup:
-    bash scripts/hydra-setup.sh
