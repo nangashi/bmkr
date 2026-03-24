@@ -21,6 +21,7 @@ type productStore interface {
 	GetProduct(ctx context.Context, id int64) (db.Product, error)
 	CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.Product, error)
 	ListProducts(ctx context.Context) ([]db.Product, error)
+	GetProductsByIDs(ctx context.Context, ids []int64) ([]db.Product, error)
 }
 
 // コンパイル時に *db.Queries が productStore を満たすことを保証する。
@@ -93,6 +94,54 @@ func (h *ProductServiceHandler) ListProducts(
 	}
 
 	return connect.NewResponse(&productv1.ListProductsResponse{
+		Products: protoProducts,
+	}), nil
+}
+
+// BatchGetProducts handles the BatchGetProducts RPC.
+//
+// 動作:
+//   - ids が空、100 件超、または非正値を含む場合は INVALID_ARGUMENT を返す
+//   - ids に重複がある場合は検索前に除去し、各 product は高々 1 回返す
+//   - store.GetProductsByIDs で該当商品を一括取得する
+//   - 存在しない ID は無視し、見つかった商品のみ返す（部分取得）
+//   - 各 db.Product を dbProductToProto で protobuf メッセージに変換する
+//
+// エラー:
+//   - DB エラー時は connect.CodeInternal を返す
+func (h *ProductServiceHandler) BatchGetProducts(
+	ctx context.Context,
+	req *connect.Request[productv1.BatchGetProductsRequest],
+) (*connect.Response[productv1.BatchGetProductsResponse], error) {
+	ids := req.Msg.GetIds()
+	if len(ids) == 0 || len(ids) > 100 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("ids must contain between 1 and 100 elements"))
+	}
+
+	uniqueIDs := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("ids must be positive"))
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueIDs = append(uniqueIDs, id)
+	}
+
+	products, err := h.store.GetProductsByIDs(ctx, uniqueIDs)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	protoProducts := make([]*productv1.Product, 0, len(products))
+	for _, product := range products {
+		protoProducts = append(protoProducts, dbProductToProto(product))
+	}
+
+	return connect.NewResponse(&productv1.BatchGetProductsResponse{
 		Products: protoProducts,
 	}), nil
 }

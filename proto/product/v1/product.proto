@@ -41,8 +41,36 @@ message ListProductsResponse {
   repeated Product products = 1;
 }
 
+message BatchGetProductsRequest {
+  repeated int64 ids = 1;
+}
+
+message BatchGetProductsResponse {
+  repeated Product products = 1;
+}
+
 service ProductService {
   rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
   rpc GetProduct(GetProductRequest) returns (GetProductResponse);
   rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+
+  // BatchGetProducts returns products for the given IDs.
+  //
+  // Pre:
+  //   - ids must contain at least 1 and at most 100 elements
+  //   - each id must be a positive integer
+  //
+  // Post:
+  //   - returns found products only; unknown IDs are silently omitted
+  //   - duplicate IDs are deduplicated; each product is returned at most once
+  //   - products are returned in arbitrary order (not guaranteed to match request order)
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — ids is empty, exceeds 100 elements, or contains non-positive values
+  //
+  // Defers:
+  //   存在しない ID に対するエラー通知は行わない（部分取得を許容）
+  rpc BatchGetProducts(BatchGetProductsRequest) returns (BatchGetProductsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
