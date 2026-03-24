@@ -24,7 +24,7 @@ type mockCartQuerier struct {
 	listCartItemsFn          func(ctx context.Context, cartID int64) ([]db.CartItem, error)
 	upsertCartItemFn         func(ctx context.Context, arg db.UpsertCartItemParams) error
 	removeCartItemFn         func(ctx context.Context, arg db.RemoveCartItemParams) error
-	updateCartItemQuantityFn func(ctx context.Context, arg db.UpdateCartItemQuantityParams) error
+	updateCartItemQuantityFn func(ctx context.Context, arg db.UpdateCartItemQuantityParams) (int64, error)
 	getCartItemFn            func(ctx context.Context, arg db.GetCartItemParams) (db.CartItem, error)
 }
 
@@ -63,7 +63,7 @@ func (m *mockCartQuerier) RemoveCartItem(ctx context.Context, arg db.RemoveCartI
 	panic("RemoveCartItem not expected")
 }
 
-func (m *mockCartQuerier) UpdateCartItemQuantity(ctx context.Context, arg db.UpdateCartItemQuantityParams) error {
+func (m *mockCartQuerier) UpdateCartItemQuantity(ctx context.Context, arg db.UpdateCartItemQuantityParams) (int64, error) {
 	if m.updateCartItemQuantityFn != nil {
 		return m.updateCartItemQuantityFn(ctx, arg)
 	}
@@ -417,8 +417,8 @@ func TestUpdateQuantity(t *testing.T) {
 					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
 						return db.CartItem{ID: 10, CartID: 1, ProductID: 200, Quantity: 2, CreatedAt: pgtype.Timestamptz{Valid: true}}, nil
 					},
-					updateCartItemQuantityFn: func(_ context.Context, _ db.UpdateCartItemQuantityParams) error {
-						return nil
+					updateCartItemQuantityFn: func(_ context.Context, _ db.UpdateCartItemQuantityParams) (int64, error) {
+						return 1, nil
 					},
 					listCartItemsFn: func(_ context.Context, _ int64) ([]db.CartItem, error) {
 						return items, nil
@@ -496,8 +496,8 @@ func TestUpdateQuantity(t *testing.T) {
 					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
 						return db.CartItem{ID: 10, CartID: 1, ProductID: 200, Quantity: 2, CreatedAt: pgtype.Timestamptz{Valid: true}}, nil
 					},
-					updateCartItemQuantityFn: func(_ context.Context, _ db.UpdateCartItemQuantityParams) error {
-						return errDB
+					updateCartItemQuantityFn: func(_ context.Context, _ db.UpdateCartItemQuantityParams) (int64, error) {
+						return 0, errDB
 					},
 				}
 			},

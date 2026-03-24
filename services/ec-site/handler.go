@@ -27,7 +27,7 @@ type cartQuerier interface {
 	ListCartItems(ctx context.Context, cartID int64) ([]db.CartItem, error)
 	UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) error
 	RemoveCartItem(ctx context.Context, arg db.RemoveCartItemParams) error
-	UpdateCartItemQuantity(ctx context.Context, arg db.UpdateCartItemQuantityParams) error
+	UpdateCartItemQuantity(ctx context.Context, arg db.UpdateCartItemQuantityParams) (int64, error)
 	GetCartItem(ctx context.Context, arg db.GetCartItemParams) (db.CartItem, error)
 }
 
@@ -85,86 +85,170 @@ func (h *CartServiceHandler) GetCart(
 }
 
 // AddItem adds a product to the customer's cart.
-//
-// wip: 正常系フロー
-//   - req.Msg.CustomerId <= 0 または req.Msg.ProductId <= 0 の場合、INVALID_ARGUMENT を返す
-//   - req.Msg.Quantity が 1 未満の場合、INVALID_ARGUMENT を返す
-//   - customer_id でカートを取得する（GetCartByCustomerID）
-//   - カートが存在しない場合（pgx.ErrNoRows）、新規作成する（CreateCart）
-//   - GetCartByCustomerID / CreateCart の DB エラーは INTERNAL を返す
-//   - product_id の存在を ProductService.GetProduct で確認する
-//   - GetProduct が NOT_FOUND を返した場合、NOT_FOUND を返す
-//   - GetProduct がその他のエラーを返した場合、INTERNAL を返す
-//   - UpsertCartItem で cart_items にアイテムを挿入/更新する（同一 product_id は quantity 加算）
-//   - UpsertCartItem の DB エラーは INTERNAL を返す
-//   - ListCartItems でカート内容を取得し、dbCartToProto で変換してレスポンスを返す
-//   - ListCartItems の DB エラーは INTERNAL を返す
-//
-// wip: エッジケース
-//   - quantity == 0 → INVALID_ARGUMENT
-//   - quantity が負の値 → INVALID_ARGUMENT
-//   - 同一 product_id を2回 AddItem → 2回目は quantity が加算される（UPSERT）
-//   - product_id が存在しない → NOT_FOUND（ProductService で確認）
-//   - カートが初めて作成される場合 → CreateCart 後に UpsertCartItem
+// If the product is already in the cart, the quantity is added (UPSERT).
 func (h *CartServiceHandler) AddItem(
 	ctx context.Context,
 	req *connect.Request[ecv1.AddItemRequest],
 ) (*connect.Response[ecv1.AddItemResponse], error) {
-	panic("not implemented")
+	if req.Msg.CustomerId <= 0 || req.Msg.ProductId <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+	if req.Msg.Quantity < 1 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+
+	cart, err := h.q.GetCartByCustomerID(ctx, req.Msg.CustomerId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			cart, err = h.q.CreateCart(ctx, req.Msg.CustomerId)
+			if err != nil {
+				slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.CreateCart")
+				return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+			}
+		} else {
+			slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.GetCartByCustomerID")
+			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+		}
+	}
+
+	_, err = h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
+		Id: req.Msg.ProductId,
+	}))
+	if err != nil {
+		if connect.CodeOf(err) == connect.CodeNotFound {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("product not found"))
+		}
+		slog.ErrorContext(ctx, "product service error", "error", err, "method", "AddItem.GetProduct")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	err = h.q.UpsertCartItem(ctx, db.UpsertCartItemParams{
+		CartID:    cart.ID,
+		ProductID: req.Msg.ProductId,
+		Quantity:  req.Msg.Quantity,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.UpsertCartItem")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	items, err := h.q.ListCartItems(ctx, cart.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.ListCartItems")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	return connect.NewResponse(&ecv1.AddItemResponse{
+		Cart: dbCartToProto(cart, items),
+	}), nil
 }
 
 // RemoveItem removes a cart item from the customer's cart.
-//
-// wip: 正常系フロー
-//   - req.Msg.CustomerId <= 0 または req.Msg.ItemId <= 0 の場合、INVALID_ARGUMENT を返す
-//   - customer_id でカートを取得する（GetCartByCustomerID）
-//   - カートが存在しない場合（pgx.ErrNoRows）、NOT_FOUND を返す
-//   - GetCartByCustomerID の DB エラーは INTERNAL を返す
-//   - GetCartItem で item_id がカート内に存在するか確認する
-//   - GetCartItem が pgx.ErrNoRows を返した場合、NOT_FOUND を返す
-//   - GetCartItem の DB エラーは INTERNAL を返す
-//   - RemoveCartItem でアイテムを削除する
-//   - RemoveCartItem の DB エラーは INTERNAL を返す
-//   - ListCartItems でカート内容を取得し、dbCartToProto で変換してレスポンスを返す
-//   - ListCartItems の DB エラーは INTERNAL を返す
-//
-// wip: エッジケース
-//   - 存在しない item_id → NOT_FOUND
-//   - 存在しない customer_id（カートなし）→ NOT_FOUND
-//   - 削除後にカートが空になる場合 → 空のアイテムリストを含むカートを返す（カート自体は削除しない）
 func (h *CartServiceHandler) RemoveItem(
 	ctx context.Context,
 	req *connect.Request[ecv1.RemoveItemRequest],
 ) (*connect.Response[ecv1.RemoveItemResponse], error) {
-	panic("not implemented")
+	if req.Msg.CustomerId <= 0 || req.Msg.ItemId <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+
+	cart, err := h.q.GetCartByCustomerID(ctx, req.Msg.CustomerId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("cart not found"))
+		}
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.GetCartByCustomerID")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	_, err = h.q.GetCartItem(ctx, db.GetCartItemParams{
+		ID:     req.Msg.ItemId,
+		CartID: cart.ID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
+		}
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.GetCartItem")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	err = h.q.RemoveCartItem(ctx, db.RemoveCartItemParams{
+		ID:     req.Msg.ItemId,
+		CartID: cart.ID,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.RemoveCartItem")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	items, err := h.q.ListCartItems(ctx, cart.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.ListCartItems")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	return connect.NewResponse(&ecv1.RemoveItemResponse{
+		Cart: dbCartToProto(cart, items),
+	}), nil
 }
 
 // UpdateQuantity updates the quantity of a cart item.
-//
-// wip: 正常系フロー
-//   - req.Msg.CustomerId <= 0 または req.Msg.ItemId <= 0 の場合、INVALID_ARGUMENT を返す
-//   - req.Msg.Quantity が 1 未満の場合、INVALID_ARGUMENT を返す
-//   - customer_id でカートを取得する（GetCartByCustomerID）
-//   - カートが存在しない場合（pgx.ErrNoRows）、NOT_FOUND を返す
-//   - GetCartByCustomerID の DB エラーは INTERNAL を返す
-//   - GetCartItem で item_id がカート内に存在するか確認する
-//   - GetCartItem が pgx.ErrNoRows を返した場合、NOT_FOUND を返す
-//   - GetCartItem の DB エラーは INTERNAL を返す
-//   - UpdateCartItemQuantity で quantity を置換する（加算ではなく置換）
-//   - UpdateCartItemQuantity の DB エラーは INTERNAL を返す
-//   - ListCartItems でカート内容を取得し、dbCartToProto で変換してレスポンスを返す
-//   - ListCartItems の DB エラーは INTERNAL を返す
-//
-// wip: エッジケース
-//   - quantity == 0 → INVALID_ARGUMENT
-//   - quantity が負の値 → INVALID_ARGUMENT
-//   - 存在しない item_id → NOT_FOUND
-//   - 存在しない customer_id（カートなし）→ NOT_FOUND
+// The quantity is replaced (not added) with the new value.
 func (h *CartServiceHandler) UpdateQuantity(
 	ctx context.Context,
 	req *connect.Request[ecv1.UpdateQuantityRequest],
 ) (*connect.Response[ecv1.UpdateQuantityResponse], error) {
-	panic("not implemented")
+	if req.Msg.CustomerId <= 0 || req.Msg.ItemId <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+	if req.Msg.Quantity < 1 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+
+	cart, err := h.q.GetCartByCustomerID(ctx, req.Msg.CustomerId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("cart not found"))
+		}
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.GetCartByCustomerID")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	_, err = h.q.GetCartItem(ctx, db.GetCartItemParams{
+		ID:     req.Msg.ItemId,
+		CartID: cart.ID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
+		}
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.GetCartItem")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	rows, err := h.q.UpdateCartItemQuantity(ctx, db.UpdateCartItemQuantityParams{
+		Quantity: req.Msg.Quantity,
+		ID:       req.Msg.ItemId,
+		CartID:   cart.ID,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.UpdateCartItemQuantity")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+	if rows == 0 {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
+	}
+
+	items, err := h.q.ListCartItems(ctx, cart.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.ListCartItems")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	return connect.NewResponse(&ecv1.UpdateQuantityResponse{
+		Cart: dbCartToProto(cart, items),
+	}), nil
 }
 
 func dbCartToProto(c db.Cart, items []db.CartItem) *ecv1.Cart {

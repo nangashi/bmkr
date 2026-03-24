@@ -65,7 +65,7 @@ app.post("/product.v1.ProductService/ListProducts", async (_req, reply) => {
 });
 
 // Connect RPC proxy: BatchGetProducts
-// wip: リクエストボディの ids フィールド（BigInt 配列）を ProductService.BatchGetProducts に転送する
+// リクエストボディの ids フィールド（BigInt 配列）を ProductService.BatchGetProducts に転送する
 //   - ids が空または未指定の場合、ProductService 側で INVALID_ARGUMENT が返る
 //   - ids の要素が整数パース不能な場合、BigInt() が例外を投げ Fastify が 500 を返す
 //   - ProductService への接続エラーは Fastify のデフォルトエラーハンドリングに任せる
@@ -78,7 +78,7 @@ app.post("/product.v1.ProductService/BatchGetProducts", async (req, reply) => {
 });
 
 // Connect RPC proxy: GetCart
-// wip: リクエストボディの customer_id を CartService.GetCart に転送する
+// リクエストボディの customer_id を CartService.GetCart に転送する
 //   - customer_id が未指定の場合、デフォルト 0n が使われる
 //   - customerId が整数パース不能な場合、BigInt() が例外を投げ Fastify が 500 を返す
 //   - ec-site サービスへの接続エラーは Fastify のデフォルトエラーハンドリングに任せる
@@ -91,7 +91,7 @@ app.post("/ec.v1.CartService/GetCart", async (req, reply) => {
 });
 
 // Connect RPC proxy: AddItem
-// wip: リクエストボディの customer_id, product_id, quantity を CartService.AddItem に転送する
+// リクエストボディの customer_id, product_id, quantity を CartService.AddItem に転送する
 //   - quantity が未指定の場合、デフォルト 0 が使われ、バックエンドで INVALID_ARGUMENT が返る
 //   - product_id が存在しない場合、バックエンドで NOT_FOUND が返る
 //   - customerId / productId が整数パース不能な場合、BigInt() が例外を投げ Fastify が 500 を返す
@@ -111,7 +111,7 @@ app.post("/ec.v1.CartService/AddItem", async (req, reply) => {
 });
 
 // Connect RPC proxy: RemoveItem
-// wip: リクエストボディの customer_id, item_id を CartService.RemoveItem に転送する
+// リクエストボディの customer_id, item_id を CartService.RemoveItem に転送する
 //   - item_id が存在しない場合、バックエンドで NOT_FOUND が返る
 //   - customerId / itemId が整数パース不能な場合、BigInt() が例外を投げ Fastify が 500 を返す
 //   - ec-site サービスへの接続エラーは Fastify のデフォルトエラーハンドリングに任せる
@@ -125,7 +125,7 @@ app.post("/ec.v1.CartService/RemoveItem", async (req, reply) => {
 });
 
 // Connect RPC proxy: UpdateQuantity
-// wip: リクエストボディの customer_id, item_id, quantity を CartService.UpdateQuantity に転送する
+// リクエストボディの customer_id, item_id, quantity を CartService.UpdateQuantity に転送する
 //   - quantity が 1 未満の場合、バックエンドで INVALID_ARGUMENT が返る
 //   - item_id が存在しない場合、バックエンドで NOT_FOUND が返る
 //   - customerId / itemId が整数パース不能な場合、BigInt() が例外を投げ Fastify が 500 を返す

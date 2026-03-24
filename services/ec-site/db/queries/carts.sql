@@ -21,7 +21,7 @@ ON CONFLICT (cart_id, product_id) DO UPDATE SET quantity = cart_items.quantity +
 -- name: RemoveCartItem :exec
 DELETE FROM cart_items WHERE id = $1 AND cart_id = $2;
 
--- name: UpdateCartItemQuantity :exec
+-- name: UpdateCartItemQuantity :execrows
 UPDATE cart_items SET quantity = $1 WHERE id = $2 AND cart_id = $3;
 
 -- name: GetCartItem :one
