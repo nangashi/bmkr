@@ -16,6 +16,7 @@ docs/guides/
 ## 参照タイミング
 
 - **計画時** (issue-plan): architecture/ のパターンを確認し、設計で踏まないか事前チェック
+- **テスト作成時** (issue-implement Phase 3): テスト関連パターンの強制学習
 - **実装時** (issue-implement): 該当技術のパターンを読んでからコード生成
 - **レビュー時** (codex-review, issue-implement Phase 5): パターン違反をチェックリストとして使用
 
