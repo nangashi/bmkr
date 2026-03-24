@@ -4,6 +4,13 @@ setup:
     pnpm install
     lefthook install
 
+# --- Build ---
+# Go ビルド確認
+build-go:
+    cd services/product-mgmt && go build ./...
+    cd services/customer-mgmt && go build ./...
+    cd services/ec-site && go build ./...
+
 # --- Lint ---
 # 全 lint 実行
 lint: lint-proto lint-ts lint-go
@@ -32,6 +39,19 @@ test-go:
     cd services/product-mgmt && go test ./...
     cd services/customer-mgmt && go test ./...
     cd services/ec-site && go test ./...
+
+# --- Typecheck ---
+# 型チェック（全言語）
+typecheck: typecheck-ts
+
+# TypeScript 型チェック
+typecheck-ts:
+    cd services/bff && pnpm exec tsc --noEmit
+    cd services/ec-site/frontend && pnpm exec tsc -b
+
+# --- Check ---
+# 静的解析（lint + typecheck）※ generate 実行済み前提
+check: lint typecheck
 
 # --- Secret Scan ---
 # シークレット検出 (gitleaks)

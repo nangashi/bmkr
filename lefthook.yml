@@ -10,6 +10,9 @@ pre-push:
     generate:
       run: just generate
       priority: 1
-    lint:
-      run: just lint
+    check:
+      run: just check
       priority: 2
+    test:
+      run: just test
+      priority: 3
