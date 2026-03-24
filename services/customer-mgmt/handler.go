@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -42,7 +43,8 @@ func (h *CustomerServiceHandler) CreateCustomer(
 		PasswordHash: string(hashedPassword),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "CreateCustomer")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	return connect.NewResponse(&customerv1.CreateCustomerResponse{
@@ -59,7 +61,8 @@ func (h *CustomerServiceHandler) GetCustomer(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("customer not found"))
 		}
-		return nil, connect.NewError(connect.CodeInternal, err)
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCustomer")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	return connect.NewResponse(&customerv1.GetCustomerResponse{

@@ -35,17 +35,20 @@ func (h *CartServiceHandler) GetCart(
 		if errors.Is(err, pgx.ErrNoRows) {
 			cart, err = h.queries.CreateCart(ctx, customerID)
 			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, err)
+				slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.CreateCart")
+				return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 			}
 		} else {
-			return nil, connect.NewError(connect.CodeInternal, err)
+			slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.GetCartByCustomerID")
+			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 		}
 	}
 
 	// List cart items
 	items, err := h.queries.ListCartItems(ctx, cart.ID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.ListCartItems")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	// Inter-service communication: fetch product info for each item (log only)

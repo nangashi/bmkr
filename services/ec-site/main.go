@@ -85,7 +85,8 @@ func main() {
 
 	e.GET("/health", func(c echo.Context) error {
 		if err := pool.Ping(c.Request().Context()); err != nil {
-			return c.JSON(http.StatusServiceUnavailable, map[string]string{"status": "unhealthy", "error": err.Error()})
+			slog.ErrorContext(c.Request().Context(), "health check failed", "error", err)
+			return c.JSON(http.StatusServiceUnavailable, map[string]string{"status": "unhealthy"})
 		}
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})

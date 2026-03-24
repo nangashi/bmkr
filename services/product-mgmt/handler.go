@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -42,7 +43,8 @@ func (h *ProductServiceHandler) CreateProduct(
 		StockQuantity: int32(req.Msg.StockQuantity),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "CreateProduct")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	return connect.NewResponse(&productv1.CreateProductResponse{
@@ -59,7 +61,8 @@ func (h *ProductServiceHandler) GetProduct(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("product not found"))
 		}
-		return nil, connect.NewError(connect.CodeInternal, err)
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "GetProduct")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	return connect.NewResponse(&productv1.GetProductResponse{
@@ -75,7 +78,7 @@ func (h *ProductServiceHandler) GetProduct(
 //   - 商品が0件の場合、空の products スライスを持つレスポンスを返す（エラーにしない）
 //
 // エラー:
-//   - DB エラー時は connect.CodeInternal を返す（エラー情報を保持する）
+//   - DB エラー時は connect.CodeInternal を返す（エラー詳細はログに出力し、クライアントには汎用メッセージのみ返す）
 func (h *ProductServiceHandler) ListProducts(
 	ctx context.Context,
 	req *connect.Request[productv1.ListProductsRequest],
@@ -84,7 +87,8 @@ func (h *ProductServiceHandler) ListProducts(
 
 	products, err := h.store.ListProducts(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "ListProducts")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	protoProducts := make([]*productv1.Product, 0, len(products))
