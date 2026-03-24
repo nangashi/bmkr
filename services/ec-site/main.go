@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -35,7 +38,6 @@ func main() {
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
 
 	queries := db.New(pool)
 
@@ -95,15 +97,44 @@ func main() {
 	e.Any(cartPath+"*", echo.WrapHandler(cartHandler))
 
 	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: h2c.NewHandler(e, &http2.Server{}),
+		Addr:         ":" + port,
+		Handler:      h2c.NewHandler(e, &http2.Server{}),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
-	slog.Info("ec-site service starting", "port", port)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.Error("failed to start server", "error", err)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	serveErr := make(chan error, 1)
+	go func() {
+		slog.Info("ec-site service starting", "port", port)
+		serveErr <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serveErr:
+		if !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("failed to start server", "error", err)
+			pool.Close()
+			os.Exit(1)
+		}
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	slog.Info("shutting down server")
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("graceful shutdown timed out, forcing close", "error", err)
+		_ = server.Close()
+		pool.Close()
 		os.Exit(1)
 	}
+	pool.Close()
+	slog.Info("server stopped")
 }
 
 // newLoggingInterceptor returns a Connect unary interceptor that outputs
