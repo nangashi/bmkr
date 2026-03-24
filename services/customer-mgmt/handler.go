@@ -7,24 +7,39 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	customerv1 "github.com/nangashi/bmkr/gen/go/customer/v1"
 	db "github.com/nangashi/bmkr/services/customer-mgmt/db/generated"
 )
 
+// customerStore は CustomerServiceHandler が必要とする DB 操作を定義する。
+// *db.Queries がこのインターフェースを満たす。
+type customerStore interface {
+	CreateCustomer(ctx context.Context, arg db.CreateCustomerParams) (db.Customer, error)
+	GetCustomer(ctx context.Context, id int64) (db.Customer, error)
+}
+
+var _ customerStore = (*db.Queries)(nil)
+
 type CustomerServiceHandler struct {
-	queries *db.Queries
+	store customerStore
 }
 
 func (h *CustomerServiceHandler) CreateCustomer(
 	ctx context.Context,
 	req *connect.Request[customerv1.CreateCustomerRequest],
 ) (*connect.Response[customerv1.CreateCustomerResponse], error) {
-	customer, err := h.queries.CreateCustomer(ctx, db.CreateCustomerParams{
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Msg.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	customer, err := h.store.CreateCustomer(ctx, db.CreateCustomerParams{
 		Name:         req.Msg.Name,
 		Email:        req.Msg.Email,
-		PasswordHash: req.Msg.Password,
+		PasswordHash: string(hashedPassword),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -39,7 +54,7 @@ func (h *CustomerServiceHandler) GetCustomer(
 	ctx context.Context,
 	req *connect.Request[customerv1.GetCustomerRequest],
 ) (*connect.Response[customerv1.GetCustomerResponse], error) {
-	customer, err := h.queries.GetCustomer(ctx, req.Msg.Id)
+	customer, err := h.store.GetCustomer(ctx, req.Msg.Id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("customer not found"))
