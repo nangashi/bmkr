@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -46,7 +47,6 @@ func main() {
 
 	e := echo.New()
 
-	// RequestID MW: generate/propagate X-Request-Id
 	// RequestIDHandler bridges the ID to the request header so that
 	// the Connect interceptor can read it via req.Header().
 	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
@@ -55,7 +55,6 @@ func main() {
 		},
 	}))
 
-	// Request logger for non-RPC endpoints (health, etc.)
 	// Skipper: paths containing "." are RPC routes (e.g. /ec.v1.CartService/*)
 	// and are logged by the Connect interceptor instead.
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
@@ -63,7 +62,6 @@ func main() {
 		LogURI:       true,
 		LogMethod:    true,
 		LogLatency:   true,
-		LogError:     true,
 		LogRequestID: true,
 		Skipper: func(c echo.Context) bool {
 			return strings.Contains(c.Path(), ".")
@@ -108,21 +106,27 @@ func main() {
 	}
 }
 
-// wip: newLoggingInterceptor returns a Connect unary interceptor for canonical log line output.
-// wip:
-// wip: 動作:
-// wip:   - リクエスト開始時刻を time.Now() で記録する
-// wip:   - next ハンドラを呼び出す
-// wip:   - time.Since(start) で duration を計算する
-// wip:   - err == nil なら status = "ok"、err != nil なら status = "error"
-// wip:   - req.Header().Get("X-Request-Id") で request_id を取得する
-// wip:   - req.Spec().Procedure で RPC メソッド名を取得する
-// wip:   - slog.InfoContext で canonical log line を1行出力する
-// wip:     フィールド: method, status, duration_ms, request_id
+// newLoggingInterceptor returns a Connect unary interceptor that outputs
+// a canonical log line with method, status, duration_ms, and request_id.
 func newLoggingInterceptor() connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			panic("not implemented")
+			start := time.Now()
+			resp, err := next(ctx, req)
+			duration := time.Since(start)
+
+			status := "ok"
+			if err != nil {
+				status = "error"
+			}
+
+			slog.InfoContext(ctx, "request completed",
+				"method", req.Spec().Procedure,
+				"status", status,
+				"duration_ms", duration.Milliseconds(),
+				"request_id", req.Header().Get(echo.HeaderXRequestID),
+			)
+			return resp, err
 		}
 	}
 }
