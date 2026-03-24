@@ -26,27 +26,17 @@ ADR スキルでは以下の操作が可能です:
 
 1. **作成** — 特定の意思決定を ADR として記録する（例: `/adr ローカルストレージに SQLite を使用`）
 2. **提案** — プロジェクトの要求・設計・既存 ADR を分析し、作成すべき ADR を提案する（`/adr propose`）
-3. **supersede** — 既存の ADR を見直して新しい ADR で置き換える
-4. **チェック** — 全ADRの鮮度を監査する（`/adr check`）
-5. **再評価** — 特定ADRの前提変化を検証し再評価する（`/adr re-evaluate NNNN`）
+3. **チェック** — 全ADRの鮮度を監査する（`/adr check`）
+4. **再評価** — 特定ADRを簡易チェックし、必要なら supersede する（`/adr re-evaluate NNNN`）
 
 どの操作を行いますか？トピックを教えていただくか、「提案」と答えていただければ提案モードに入ります。
 ```
 
 ユーザーが「提案」「propose」等と回答した場合は**提案モード**に入る → 「提案モード」セクション（本ファイル末尾）に従う。
 ユーザーが「チェック」「check」等と回答した場合は**チェックモード**に入る → 「チェックモード」セクションに従う。
-ユーザーが「再評価」「re-evaluate」等と回答した場合は**再評価モード**に入る → 「再評価モード」セクションに従う。
+ユーザーが「再評価」「re-evaluate」「supersede」等と回答した場合は**再評価モード**に入る → 「再評価モード」セクションに従う。
 
 トピックにはユーザーが背景情報、選択肢、要件などを含めている場合がある。これらの情報は Step 3 のフレームワーク提案に活用する。
-
-### Supersede の検出
-
-トピックが既存 ADR の見直し・置き換えである場合（例: `/adr 状態管理を Zustand に変更（ADR-0003 を supersede）`）、**supersede モード**として扱う:
-
-1. `docs/adr/` から対象の旧 ADR を Read で読み込む
-2. 旧 ADR の Context and Problem Statement、Prerequisites、Decision Drivers を引き継ぎの土台にする
-3. Step 3 のフレームワーク提案で「何が変わったか」を Context に含め、旧 ADR の判断軸を再利用または更新する
-4. 以降の Step 3〜7 は通常フローと同じ。新 ADR の frontmatter には `supersedes` を記載しない（旧 ADR 側の `superseded-by` で追跡するため）
 
 ## Step 2: 次の ADR 番号を決定
 
@@ -396,7 +386,7 @@ Chosen option: "{選択した選択肢}"
 ## Step 8: 書き出し
 
 1. `docs/adr/{NNNN}-{title}.md` にファイルを書き出す
-2. **supersede モードの場合**: 旧 ADR の frontmatter を更新する
+2. **再評価モードからの supersede の場合**: 旧 ADR の frontmatter を更新する
    - `status` を `"withdrawn"` に変更
    - `superseded-by: "NNNN"` を追加（NNNN は新 ADR の番号）
    - 旧 ADR の本文は一切変更しない
@@ -422,47 +412,60 @@ STALE な ADR が見つかった場合、ユーザーに `/adr re-evaluate NNNN`
 
 ## 再評価モード
 
-`/adr re-evaluate NNNN` または「再評価」が選択された場合のフロー。人間承認を必須とする。
+`/adr re-evaluate NNNN` または「再評価」「supersede」が選択された場合のフロー。supersede もこのフローに統合されている。
 
-### Re-evaluate Phase 1: Audit（自動・読み取り専用）
+### Re-evaluate Step 1: 対象ADRの読み込み
 
-1. 対象 ADR（番号 NNNN）を `docs/adr/` から Read で読み込む
-2. Prerequisites の各項目について:
-   - 依存先 ADR の status を確認する
-   - コードベースの状態を確認する（対象技術がまだ使われているか — go.mod, package.json, 設定ファイル等を参照）
-3. Decision Outcome で選択した技術について:
-   - WebSearch で最新状況を調査する（メジャーバージョン変更、deprecation、セキュリティ問題）
-   - Excluded Options に記載された候補の現状も確認する（成熟して再検討に値するか）
-4. 結果をユーザーに報告する:
+対象 ADR（番号 NNNN）を `docs/adr/` から Read で読み込む。以下を把握する:
+- Decision Outcome で選択した技術
+- Decision Drivers（判断軸）
+- Accepted Tradeoffs
+
+### Re-evaluate Step 2: 簡易チェック（2エージェント並列）
+
+Agent ツール（subagent_type=general-purpose）を **2つ並列**で起動する。
+
+**エージェント A: 新たな選択肢の検索**
+- ADR のトピック領域で、ADR 作成後に登場した有力な代替候補がないか WebSearch で調査する
+- 検索例: `"{トピック} alternative {現在の年}"`, `"{採用技術} vs"`, `"{トピック} new {現在の年}"`
+- 見つかった候補を簡潔にリストアップして返す（候補なしの場合はその旨を返す）
+
+**エージェント B: 採用技術の変更チェック**
+- 採用した技術に、判断を覆しうる変更がないか WebSearch で調査する
+- チェック観点: deprecation、メジャーバージョン変更による破壊的変更、重大なセキュリティ問題、メンテナンス停止
+- 検索例: `"{採用技術} deprecated"`, `"{採用技術} breaking changes {現在の年}"`, `"{採用技術} security vulnerability"`
+- 発見事項を簡潔にリストアップして返す（問題なしの場合はその旨を返す）
+
+### Re-evaluate Step 3: 結果提示と判断
+
+2つのエージェントの結果を統合し、以下の形式で報告する:
 
 ```
 ## ADR-NNNN 再評価レポート
 
-### 前提条件の変化
-- {変化があれば記載、なければ「変化なし」}
+### 新たな選択肢
+- {見つかった候補、またはなし}
 
-### 選択技術の現状
-- {最新バージョン、既知の問題等}
+### 採用技術の変更
+- {発見事項、または問題なし}
 
-### 除外候補の現状
-- {成熟度の変化等}
-
-### 判定
-- ✅ 現行決定は有効 / ⚠️ 再検討を推奨
+### 判断
+上記を踏まえ、以下のいずれかを選んでください:
+1. **現状維持** — last-validated を更新して終了
+2. **supersede** — 新しい ADR を作成して置き換える
 ```
 
-### Re-evaluate Phase 2: Re-evaluate（ユーザーが「再検討する」と回答した場合のみ）
+### Re-evaluate Step 4: 分岐
 
-Phase 1 の報告後、ユーザーに以下を確認する:
-- 「現行決定は有効」→ `last-validated` を本日の日付に更新し、Change Log に記録する。ここで完了
-- 「再検討する」→ 以下の再検討フローに進む
+**現状維持の場合:**
+- 既存 ADR の `last-validated` を本日の日付に更新する
+- Change Log に再評価した旨を記録する
+- ここで完了
 
-**再検討フロー:**
-1. 既存の Step 3〜7 のワークフロー（調査→比較→ユーザー判断→生成）を再利用する
-2. Phase 1 の調査結果を Step 3 のフレームワーク提案の入力として活用する
-3. 結果に応じて:
-   - **同じ決定が維持された場合**: 既存 ADR の `last-validated` を本日の日付に更新し、Change Log に再評価結果を記録する。新 ADR は作成しない
-   - **決定が変わった場合**: supersede（新 ADR を作成し、旧 ADR の `status` を `"withdrawn"` + `superseded-by: "NNNN"` に更新する）
+**supersede の場合:**
+1. 旧 ADR の Context and Problem Statement、Prerequisites、Decision Drivers を引き継ぎの土台にする
+2. 簡易チェックの結果を Step 3 のフレームワーク提案の入力として活用する（新たな選択肢が見つかっていれば候補に含める）
+3. ADR 作成フロー（Step 2〜8）に入る。Step 8 で旧 ADR の frontmatter を更新する（`status: "withdrawn"` + `superseded-by: "NNNN"`）
 
 ---
 
