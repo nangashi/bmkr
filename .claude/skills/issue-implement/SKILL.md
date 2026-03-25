@@ -237,6 +237,7 @@ Phase 5 完了後、または Phase 4 中断後に実行する。プロセスの
 | Phase 4 failure_log | 各 attempt の失敗テスト・エラー内容・試したアプローチ |
 | Phase 4 ESCALATE | テスト/I/F 修正の内容と理由 |
 | Phase 4 Codex 3観点レビュー | 最終ゲートで採用された指摘 |
+| Phase 1 判断差分 | `.output/issue-implement/{issue_number}/interface-design-decisions.md` の内容 |
 | その他 | Phase 1〜5 で発生した想定外のエラーや手戻り |
 
 **失敗・指摘の分析:**
