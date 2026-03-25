@@ -114,27 +114,21 @@ export function ProductDetailPage(): React.ReactElement {
   }
 
   return (
-    <div style={{ display: "grid", gap: "16px" }}>
+    <div className="grid gap-4">
       <Link to="/">商品一覧に戻る</Link>
-      <div
-        style={{
-          backgroundColor: "#e5e7eb",
-          color: "#6b7280",
-          minHeight: "240px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: "8px",
-        }}
-      >
+      <div className="bg-surface text-muted min-h-60 flex items-center justify-center rounded-lg">
         No Image
       </div>
-      <div style={{ display: "grid", gap: "8px" }}>
+      <div className="grid gap-2">
         <h1>{product.name}</h1>
         <p>{product.description}</p>
         <p>価格: {product.price.toString()}円</p>
         <p>在庫数: {product.stockQuantity.toString()}</p>
-        <button onClick={() => void handleAddToCart()} disabled={addingToCart}>
+        <button
+          className="rounded border border-border bg-gray-100 px-4 py-1 disabled:opacity-50"
+          onClick={() => void handleAddToCart()}
+          disabled={addingToCart}
+        >
           {addingToCart ? "追加中..." : "カートに追加"}
         </button>
         {cartMessage !== null && <p>{cartMessage}</p>}

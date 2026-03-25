@@ -72,44 +72,14 @@ export function ProductListPage(): React.ReactElement {
   return (
     <div>
       <h1>商品一覧</h1>
-      <ul
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: 0,
-          display: "grid",
-          gap: "16px",
-        }}
-      >
+      <ul className="list-none m-0 p-0 grid gap-4">
         {products.map((product) => (
-          <li
-            key={product.id.toString()}
-            style={{
-              border: "1px solid #d1d5db",
-              borderRadius: "8px",
-              padding: "16px",
-            }}
-          >
+          <li key={product.id.toString()} className="border border-border rounded-lg p-4">
             <Link
               to={`/products/${product.id.toString()}`}
-              style={{
-                color: "inherit",
-                textDecoration: "none",
-                display: "grid",
-                gap: "12px",
-              }}
+              className="text-inherit no-underline grid gap-3"
             >
-              <div
-                style={{
-                  backgroundColor: "#e5e7eb",
-                  color: "#6b7280",
-                  minHeight: "160px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "6px",
-                }}
-              >
+              <div className="bg-surface text-muted min-h-40 flex items-center justify-center rounded-md">
                 No Image
               </div>
               <div>

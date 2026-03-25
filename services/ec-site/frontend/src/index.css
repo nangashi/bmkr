@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #111827;
+  --color-surface: #e5e7eb;
+  --color-muted: #6b7280;
+  --color-border: #d1d5db;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  h1 {
+    font-size: 2em;
+    font-weight: bold;
+  }
+
+  a {
+    color: #2563eb;
+    text-decoration-line: underline;
+  }
+}
