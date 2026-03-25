@@ -13,6 +13,7 @@ Report Directory 内のレポートを一次情報として参照する。
 - `docs/guides/implementation/` 配下のガイドを Read で読む
 - 変更対象ファイルの周辺にある既存ファイルを Read してパターンを把握する
 - オシレーション回避指示がある場合: `{report:oscillation-directives.md}` を Read し、記載された directive に従う
+- goal_check からの差し戻しの場合: `{report:goal-check.md}` を Read し、未対応の受け入れ条件を確認する
 
 ## 実装
 
@@ -40,6 +41,13 @@ Report Directory 内のレポートを一次情報として参照する。
 - **既存コード内のインラインコメント**: コードから自明な内容は削除、付加価値のある説明のみ残す
 
 クリーンアップ後に `just test` を再実行して既存テストが壊れていないことを確認する。
+
+## simplify（全テスト通過 + wip: クリーンアップ後）
+
+動作を変えずに、変更されたコードの冗長性を整理する:
+- 重複コード・不要な中間変数・過剰な抽象化を検出・修正
+- 修正後 `just test` + `just fmt` + `just lint` で確認
+- simplify 後にテストが壊れた場合は simplify の変更を全て revert し、simplify なしで完了とする
 
 ## 自己チェック（必須）
 

@@ -3,6 +3,11 @@ description: "issue-plan の計画をもとに、I/F設計 → テスト → 実
 max_movements: 50
 initial_movement: init
 
+piece_config:
+  provider_options:
+    codex:
+      network_access: true
+
 loop_monitors:
   - cycle:
       - review
@@ -32,6 +37,7 @@ movements:
     knowledge: architecture
     provider_options:
       claude:
+        model: sonnet
         allowed_tools:
           - Read
           - Glob
@@ -48,7 +54,7 @@ movements:
       - condition: 新しい型・インターフェースの定義が必要
         next: interface_design
       - condition: 既存コード修正で新規ロジックあり
-        next: write_tests
+        next: interface_design
       - condition: 機械的置換のみ
         next: implement
       - condition: 計画が見つからない
@@ -86,14 +92,14 @@ movements:
       - condition: 軽微な修正のみ（レビュー不要）
         next: write_tests
 
-  # --- Phase 2: 設計レビュー（単発パス）---
+  # --- Phase 2: 設計レビュー ---
   - name: design_review
     edit: false
     persona: architecture-reviewer
     policy: review
     session: refresh
     provider_options:
-      claude:
+      codex:
         allowed_tools:
           - Read
           - Glob
@@ -118,6 +124,7 @@ movements:
     knowledge: architecture
     provider_options:
       claude:
+        model: sonnet
         allowed_tools:
           - Read
           - Glob
@@ -143,6 +150,7 @@ movements:
       - unit-testing
     provider_options:
       claude:
+        model: sonnet
         allowed_tools:
           - Read
           - Glob
@@ -215,7 +223,7 @@ movements:
     policy: review
     session: refresh
     provider_options:
-      claude:
+      codex:
         allowed_tools:
           - Read
           - Glob
@@ -239,6 +247,7 @@ movements:
     session: refresh
     provider_options:
       claude:
+        model: haiku
         allowed_tools:
           - Read
           - Glob
@@ -263,7 +272,7 @@ movements:
       - testing
     knowledge: architecture
     provider_options:
-      claude:
+      codex:
         allowed_tools:
           - Read
           - Glob
@@ -284,6 +293,7 @@ movements:
     session: refresh
     provider_options:
       claude:
+        model: sonnet
         allowed_tools:
           - Read
           - Glob
@@ -294,6 +304,8 @@ movements:
       report:
         - name: validation-results.md
           format: supervisor-validation
+        - name: oscillation-directives.md
+          format: supervisor-validation
     rules:
       - condition: 修正が根本対策、次のレビューサイクルへ
         next: review
@@ -302,18 +314,16 @@ movements:
 
   # --- ゴール整合性 + PR 準備 ---
   - name: goal_check
-    edit: true
+    edit: false
     persona: supervisor
     provider_options:
       claude:
+        model: haiku
         allowed_tools:
           - Read
           - Glob
           - Grep
-          - Edit
-          - Write
           - Bash
-    required_permission_mode: edit
     instruction: goal-check
     output_contracts:
       report:
@@ -329,16 +339,15 @@ movements:
 
   # --- 振り返り ---
   - name: retrospective
-    edit: true
+    edit: false
     persona: planner
     provider_options:
       claude:
+        model: sonnet
         allowed_tools:
           - Read
           - Glob
           - Grep
-          - Write
-          - Bash
     instruction: retrospective
     output_contracts:
       report:
