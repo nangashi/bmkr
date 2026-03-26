@@ -1,0 +1,358 @@
+name: issue-implement
+description: "issue-plan の計画をもとに、I/F設計 → テスト → 実装 → レビューループ → PR作成まで自動実行する"
+max_movements: 50
+initial_movement: init
+
+piece_config:
+  provider_options:
+    codex:
+      network_access: true
+
+loop_monitors:
+  - cycle:
+      - review
+      - triage
+      - fix
+      - validate
+    threshold: 6
+    judge:
+      persona: supervisor
+      instruction: |
+        レビューループが {cycle_count} 回繰り返されました。
+
+        残存する指摘が受容可能か、根本的な設計問題かを判断してください。
+        Report Directory 内のレビュー・トリアージ・バリデーション結果を確認し、
+        同じ指摘が繰り返されていないか、修正が反映されているかを検証してください。
+      rules:
+        - condition: 残存指摘は受容可能
+          next: goal_check
+        - condition: 根本的な設計問題
+          next: ABORT
+
+movements:
+  # --- Phase 0: 初期化 ---
+  - name: init
+    edit: true
+    persona: planner
+    knowledge: architecture
+    provider_options:
+      claude:
+        model: sonnet
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Bash
+          - WebSearch
+          - WebFetch
+    instruction: init
+    output_contracts:
+      report:
+        - name: init-context.md
+          format: plan
+    rules:
+      - condition: 新しい型・インターフェースの定義が必要
+        next: interface_design
+      - condition: 既存コード修正で新規ロジックあり
+        next: interface_design
+      - condition: 機械的置換のみ
+        next: implement
+      - condition: 計画が見つからない
+        next: ABORT
+        appendix: |
+          この Issue には実装計画がありません。
+          先に `/issue-plan` で計画を作成してください。
+
+  # --- Phase 1: I/F設計 ---
+  - name: interface_design
+    edit: true
+    persona: coder
+    policy: coding
+    knowledge: architecture
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+          - WebSearch
+          - WebFetch
+    required_permission_mode: edit
+    instruction: interface-design
+    output_contracts:
+      report:
+        - name: interface-design-decisions.md
+          format: coder-decisions
+    rules:
+      - condition: 新規型・インターフェースを定義した（設計レビュー推奨）
+        next: design_review
+      - condition: 軽微な修正のみ（レビュー不要）
+        next: write_tests
+
+  # --- Phase 2: 設計レビュー ---
+  - name: design_review
+    edit: false
+    persona: architecture-reviewer
+    policy: review
+    session: refresh
+    provider_options:
+      codex:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Bash
+    instruction: design-review
+    output_contracts:
+      report:
+        - name: design-review.md
+          format: architecture-review
+    rules:
+      - condition: CRITICAL/IMPORTANT の指摘あり
+        next: design_fix
+      - condition: LOW のみ or 指摘なし
+        next: write_tests
+
+  # --- Phase 2: 設計修正 ---
+  - name: design_fix
+    edit: true
+    persona: coder
+    policy: coding
+    knowledge: architecture
+    provider_options:
+      claude:
+        model: sonnet
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+    required_permission_mode: edit
+    instruction: design-fix
+    rules:
+      - condition: 修正完了
+        next: write_tests
+
+  # --- Phase 3: テスト作成 ---
+  - name: write_tests
+    edit: true
+    persona: coder
+    policy:
+      - coding
+      - testing
+    knowledge:
+      - architecture
+      - unit-testing
+    provider_options:
+      claude:
+        model: sonnet
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+          - WebSearch
+          - WebFetch
+    required_permission_mode: edit
+    instruction: write-tests
+    output_contracts:
+      report:
+        - name: test-scope.md
+          format: coder-scope
+    rules:
+      - condition: テスト作成完了（Red 確認済み）
+        next: implement
+      - condition: テスト対象なし（wip:コメントなし）
+        next: implement
+
+  # --- Phase 4: 実装 ---
+  - name: implement
+    edit: true
+    persona: coder
+    policy:
+      - coding
+      - testing
+    session: refresh
+    knowledge: architecture
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+          - WebSearch
+          - WebFetch
+    required_permission_mode: edit
+    instruction: implement-issue
+    output_contracts:
+      report:
+        - name: implement-scope.md
+          format: coder-scope
+        - name: implement-decisions.md
+          format: coder-decisions
+    rules:
+      - condition: 全テスト通過、wip:クリーンアップ完了
+        next: review
+      - condition: テスト失敗が残存（3回未満、リトライ可能）
+        next: implement
+      - condition: テスト失敗が残存（3回到達、テスト/I/F修正で再試行可能）
+        next: implement
+        appendix: |
+          ESCALATE: implement が3回到達しました。
+          テスト/I/Fに問題がある可能性があります。
+          failure_log を分析し、テスト/I/Fの修正が必要なら修正してから実装してください。
+          修正が許されるもの: フィクスチャの誤り、動作コメント解釈ミス、テストセットアップ不備。
+          修正が許されないもの: テスト期待値を実装に合わせる変更、カバレッジを下げる変更。
+      - condition: 実装不可（複雑さが想定超過 or ESCALATE後も解決不能）
+        next: ABORT
+
+  # --- 最終レビューループ: Step 1 レビュー ---
+  - name: review
+    edit: false
+    persona: architecture-reviewer
+    policy: review
+    session: refresh
+    provider_options:
+      codex:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Bash
+    instruction: review-final
+    output_contracts:
+      report:
+        - name: review-findings.md
+          format: architecture-review
+    rules:
+      - condition: 指摘あり
+        next: triage
+      - condition: 指摘なし
+        next: goal_check
+
+  # --- 最終レビューループ: Step 2 トリアージ ---
+  - name: triage
+    edit: false
+    persona: supervisor
+    session: refresh
+    provider_options:
+      claude:
+        model: haiku
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+    instruction: triage
+    output_contracts:
+      report:
+        - name: triage-results.md
+          format: architecture-review
+    rules:
+      - condition: CRITICAL/IMPORTANT の採用指摘あり
+        next: fix
+      - condition: LOW のみ（全て除外）
+        next: goal_check
+
+  # --- 最終レビューループ: Step 3 修正 ---
+  - name: fix
+    edit: true
+    persona: coder
+    policy:
+      - coding
+      - testing
+    knowledge: architecture
+    provider_options:
+      codex:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+    required_permission_mode: edit
+    instruction: fix-findings
+    rules:
+      - condition: 修正完了
+        next: validate
+
+  # --- 最終レビューループ: Step 4 バリデーション ---
+  - name: validate
+    edit: false
+    persona: supervisor
+    session: refresh
+    provider_options:
+      claude:
+        model: sonnet
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Bash
+    instruction: validate-fix
+    output_contracts:
+      report:
+        - name: validation-results.md
+          format: supervisor-validation
+        - name: oscillation-directives.md
+          format: supervisor-validation
+    rules:
+      - condition: 修正が根本対策、次のレビューサイクルへ
+        next: review
+      - condition: バンドエイド修正、再修正が必要
+        next: fix
+
+  # --- ゴール整合性 + PR 準備 ---
+  - name: goal_check
+    edit: false
+    persona: supervisor
+    provider_options:
+      claude:
+        model: haiku
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Bash
+    instruction: goal-check
+    output_contracts:
+      report:
+        - name: goal-check.md
+          format: supervisor-validation
+        - name: summary.md
+          format: summary
+    rules:
+      - condition: 全受け入れ条件を充足
+        next: retrospective
+      - condition: 未対応の受け入れ条件あり
+        next: implement
+
+  # --- 振り返り ---
+  - name: retrospective
+    edit: false
+    persona: planner
+    provider_options:
+      claude:
+        model: sonnet
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+    instruction: retrospective
+    output_contracts:
+      report:
+        - name: retrospective.md
+          format: plan
+    rules:
+      - condition: 振り返り完了
+        next: COMPLETE
