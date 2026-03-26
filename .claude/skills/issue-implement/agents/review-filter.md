@@ -8,6 +8,7 @@
 - `working_directory`: 作業ディレクトリのパス
 - `issue_body`: Issue 本文（スコープ外の確認用）
 - `output_path`: 出力ファイルパス
+- `oscillation_directives`: 振動回避指示（存在する場合のみ。`.output/issue-implement/{issue_number}/oscillation-directives.md` の内容）
 
 ---
 
@@ -37,6 +38,7 @@
 3. **コスト対効果が見合わない**: 修正に大幅なリファクタリングが必要で、Issue のスコープを超える
 4. **スタイルの好み**: 機能的な違いがない命名・構造の好み
 5. **スコープ外**: Issue の「スコープ外」に記載された内容に関する指摘
+6. **振動 directive との競合**: 指摘の suggestion が oscillation directive の「禁止する変更」に該当する場合、その指摘は除外する。directive は過去の振動検出で確定した判断であり、覆さない
 
 ### 4. 判定の方向性
 

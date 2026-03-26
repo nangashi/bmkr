@@ -180,7 +180,7 @@ Phase 1 でメインが直接編集を完了済みのため、検証と最終ゲ
 
 ### Phase 3 が実施された場合
 
-`references/implementation-loop.md` に従う。Codex CLI による実装 → テスト実行 → スコア判定 → 方針変更してリトライの最大3回で進める。3回で解決しなければ ESCALATE（テスト/I/F修正を試行して最終1回）。それでもダメなら中断してユーザーに報告する。全テスト通過後、`wip:` マーカーのクリーンアップを実施し、最終ゲート（Codex 3観点レビュー（サイレントフェイル・プロジェクト準拠・セキュリティ） → 採用判定 → Codex 修正を最大2回 + ゴール整合性レビュー + simplify + コメント整理）を経て Phase 5 へ。
+`references/implementation-loop.md` に従う。Codex CLI による実装 → テスト実行 → スコア判定 → 方針変更してリトライの最大3回で進める。3回で解決しなければ ESCALATE（テスト/I/F修正を試行して最終1回）。それでもダメなら中断してユーザーに報告する。全テスト通過後、`wip:` マーカーのクリーンアップを実施し、最終ゲート（Codex 3観点レビュー（サイレントフェイル・プロジェクト準拠・セキュリティ） → 採用判定 → Codex 修正を最大3回（Round 3 は振動検出時のみ） + 振動検出 + ゴール整合性レビュー + simplify + コメント整理）を経て Phase 5 へ。
 
 ### `wip:` マーカーのクリーンアップ
 
@@ -222,6 +222,7 @@ Phase 5 完了後、または Phase 4 中断後に実行する。プロセスの
 | Phase 2 スキップ後の型エラー | Phase 2 をスキップし、Phase 4 failure_log に型設計・I/F 起因の失敗がある | スキップ条件の厳格化を検討 |
 | Phase 3 スキップ後のテスト不足 | Phase 3 をスキップし、Phase 4 で新規テストを書く必要が生じた | スキップ条件の厳格化を検討 |
 | ESCALATE 発生 | Phase 4 で3回リトライ後も解決せず ESCALATE に至った | 計画の粒度・前提の見直しを issue-plan にフィードバック |
+| 最終ゲート振動発生 | oscillation-directives.md が作成された | レビュー観点間の矛盾チェック、または指摘の粒度見直し |
 
 兆候が1件もなければ「プロセスは妥当だった」と判断して 6b に進む。
 
@@ -238,6 +239,7 @@ Phase 5 完了後、または Phase 4 中断後に実行する。プロセスの
 | Phase 4 ESCALATE | テスト/I/F 修正の内容と理由 |
 | Phase 4 Codex 3観点レビュー | 最終ゲートで採用された指摘 |
 | Phase 1 判断差分 | `.output/issue-implement/{issue_number}/interface-design-decisions.md` の内容 |
+| 振動 directive | 振動が検出されたファイル・理由・固定バージョン（`.output/issue-implement/{issue_number}/oscillation-directives.md`） |
 | その他 | Phase 1〜5 で発生した想定外のエラーや手戻り |
 
 **失敗・指摘の分析:**
