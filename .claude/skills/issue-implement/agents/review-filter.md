@@ -4,11 +4,17 @@
 
 ## 入力パラメータ（親エージェントから渡される）
 
-- `review_findings`: 全レビュー結果の内容（Codex Review + 各サブエージェント出力）
-- `working_directory`: 作業ディレクトリのパス
-- `issue_body`: Issue 本文（スコープ外の確認用）
+- `issue_number`: Issue 番号
+- `review_output_path`: レビュー結果ファイルのパス（例: `.output/issue-implement/{issue_number}/review-design.md`）
 - `output_path`: 出力ファイルパス
-- `oscillation_directives`: 振動回避指示（存在する場合のみ。`.output/issue-implement/{issue_number}/oscillation-directives.md` の内容）
+
+---
+
+## 前提情報の自己取得
+
+1. `review_output_path` を Read してレビュー結果を把握する
+2. `gh issue view {issue_number}` で Issue 本文（スコープ外の確認用）を読む
+3. `.output/issue-implement/{issue_number}/oscillation-directives.md` が存在すれば Read する（振動回避指示）
 
 ---
 
