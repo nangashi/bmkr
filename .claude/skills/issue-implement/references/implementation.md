@@ -57,7 +57,7 @@ simplify（冗長コード整理）
 `references/codex-review-prompt.md` のテンプレートに以下のパラメータを埋めてプロンプトを構築し、`timeout 300 codex exec --full-auto` に stdin で渡す。codex CLI が利用できない場合はスキップ。
 
 - `{diff_command}`: `git diff main`
-- `{perspective_files}`: `review-silent-failure.md`, `review-project-compliance.md`, `review-security.md`
+- `{perspective_files}`: `silent-failure.md`, `project-compliance.md`, `security.md`
 - `{output_path}`: `.output/issue-implement/{issue_number}/review-final.md`
 
 Claude が書いたコードを Claude 自身がレビューすると自分の判断を正当化するバイアスが働くため、別 LLM の目を入れて補完する。

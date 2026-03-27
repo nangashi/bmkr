@@ -9,7 +9,7 @@
 | パラメータ | 設計レビュー | 品質ゲートレビュー |
 |-----------|------------|-----------------|
 | `{diff_command}` | `git diff HEAD` | `git diff main` |
-| `{perspective_files}` | review-type-design.md, review-error-contract.md, review-testability.md | review-silent-failure.md, review-project-compliance.md, review-security.md |
+| `{perspective_files}` | type-design.md, error-contract.md, testability.md | silent-failure.md, project-compliance.md, security.md |
 | `{output_path}` | `.output/issue-implement/{issue_number}/review-design.md` | `.output/issue-implement/{issue_number}/review-final.md` |
 
 ---
@@ -50,4 +50,4 @@
 
 - `{diff_command}` の出力はプロンプト構築時に展開して埋め込む
 - `{issue_number}` は実際の Issue 番号に置換する
-- `{perspective_files}` は `   - .claude/skills/issue-implement/references/{ファイル名}` の形式で列挙する
+- `{perspective_files}` は `   - .claude/skills/issue-implement/perspectives/{ファイル名}` の形式で列挙する
