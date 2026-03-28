@@ -17,7 +17,7 @@
 
 各観点の Step 1（Analysis）に従い対象コードの構造を把握し、
 Step 2（Findings）に従い指摘を導出する。
-必要に応じて、変更対象ファイルの周辺コード、`docs/adr/`、`docs/guides/review/` も参照する。
+必要に応じて、変更対象ファイルの周辺コード、`docs/adr/`、`docs/guides/` も参照する。
 
 ### 4. 出力
 

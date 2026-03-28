@@ -1,5 +1,5 @@
 ---
-id: over-testing
+id: testing-strategy
 category: llm-anti-pattern
 scope: [all]
 severity: high

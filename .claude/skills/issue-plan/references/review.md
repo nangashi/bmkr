@@ -98,7 +98,7 @@ Issue 本文:
    - .claude/skills/issue-plan/references/review-simplicity.md
 2. 各観点の Step 1（Analysis）に従い、計画の構造を把握してください
 3. 各観点の Step 2（Findings）に従い、指摘を導出してください
-4. 必要に応じて、docs/adr/、docs/guides/review/、既存コードも参照してください
+4. 必要に応じて、docs/adr/、docs/guides/、既存コードも参照してください
 
 ## 出力
 結果を .output/issue-plan/{issue_number}/review-codex.md に書き出してください。

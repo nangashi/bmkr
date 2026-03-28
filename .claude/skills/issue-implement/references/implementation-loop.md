@@ -36,7 +36,7 @@ git add -A && git commit -m "checkpoint: phase3 complete (issue #{number})"
 - **実装対象の差分**: `git diff main` の出力（I/F定義・動作コメントが含まれる。テストファイルも含めて全体像を把握させる）
 - 未実装箇所（`panic("not implemented")` 等）を実装に置き換えるタスク説明
 - 計画の方針・スコープ外
-- `docs/guides/implementation/` 配下のガイドに従うこと
+- `docs/guides/` 配下のガイドに従うこと（特に `go-logging.md` と `implementation-anti-patterns.md`）
 - テスト実行コマンド（`just test`）と期待される状態（全テスト Green）
 - 実装後に `just fmt` と `just lint` を実行して問題があれば修正すること
 - 公開 API（ハンドラのルーティング、レスポンス構造等）は変更しないこと。非公開 I/F（内部の依存注入方法、責務分割等）の修正が必要と判断した場合は、理由と変更範囲を出力して停止し、指示を仰ぐこと
