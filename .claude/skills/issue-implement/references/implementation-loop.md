@@ -187,3 +187,10 @@ failure_log サマリ: {全試行の失敗パターン要約}
 ```
 
 中断後も振り返りフェーズに進むこと。failure_log を振り返りの入力として使用する。
+
+---
+
+## 注意事項
+
+- **Codex sandbox のネットワーク制約**: `.codex/config.toml` で `network_access = true` を設定済みのため、`buf generate` や `go mod tidy` 等のネットワーク依存コマンドも sandbox 内で実行可能。ただし `writable_roots` に含まれないディレクトリ（`$GOPATH`, `~/.cache` 以外）への書き込みは失敗する
+- **`.git/` の書き込み制限**: sandbox は `.git/` を読み取り専用として扱う。`git commit` 等は Codex の承認フローで許可されるが、Sonnet サブエージェントから直接 git 操作を行う場合はオーケストレータ側で実行すること

@@ -1,0 +1,8 @@
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true
+writable_roots = [
+  "/home/toyama-ryosuke/go",     # GOPATH (go mod cache)
+  "/home/toyama-ryosuke/.cache",  # buf, golangci-lint 等のキャッシュ
+]
