@@ -22,7 +22,7 @@ best_commit（前フェーズ完了時点）から開始
 前フェーズ完了後、実装ループ開始前に成果物をコミットする:
 
 ```bash
-git add -A && git commit -m "checkpoint: phase3 complete (issue #{number})"
+git add -A && git commit -m "checkpoint: before implementation loop (issue #{number})"
 ```
 
 このコミットが best_commit の初期値（safe point）となる。
@@ -54,37 +54,44 @@ best_score = 0
 failure_log = []
 
 for attempt in 1..3:
-  # 1. best_commit にリセット
-  git checkout -- . && git clean -fd
+  # 1. best_commit に復元
+  git reset --hard {best_commit}
 
-  # 2. プロンプト組み立て
+  # 2. 中間成果物は保持する
+  # `.output/issue-implement/{issue_number}/` や依存インストール成果物
+  # （node_modules, 生成コードキャッシュ等）は削除しない
+
+  # 3. 必要な生成物だけ明示的に再生成
+  # 生成コードの不整合が疑われる場合のみ just generate を実行する
+
+  # 4. プロンプト組み立て
   prompt = 基本指示 + failure_log（attempt >= 2 の場合）
 
-  # 3. Sonnet サブエージェント実行
+  # 5. Sonnet サブエージェント実行
   Agent(model: sonnet, prompt: prompt)
 
-  # 4. 静的チェック（サブエージェントが見逃した場合のセーフティネット）
+  # 6. 静的チェック（サブエージェントが見逃した場合のセーフティネット）
   just fmt
   just lint
   → lint 失敗の場合もテスト実行に進む（テスト結果でスコア判定するため）
 
-  # 5. テスト実行・スコア算出
+  # 7. テスト実行・スコア算出
   just test → pass_count, total_count を取得
   score = pass_count
 
-  # 6. 判定
+  # 8. 判定
   score == total_count → 全パス → 終了 ✅
   score > best_score  → 改善:
-    git add -A && git commit -m "wip: phase4-attempt-{attempt}"
+    git add -A && git commit -m "checkpoint: implementation loop attempt {attempt} (issue #{number})"
     best_commit = HEAD
     best_score = score
   score <= best_score → 停滞/悪化:
-    （次ループ冒頭で best_commit にリセットされる）
+    （次ループ冒頭で best_commit に復元される）
 
-  # 7. failure_log に記録
+  # 9. failure_log に記録
   failure_log に追記:
     - 失敗テスト名とエラー内容（テスト出力から）
-    - 変更ファイル一覧（git diff --name-only から）
+    - 変更ファイル一覧（`git diff --name-only {best_commit}..HEAD` から）
     - サブエージェントの自由記述出力（あれば）
 ```
 
@@ -105,7 +112,7 @@ for attempt in 1..3:
 情報源の優先順位:
 1. サブエージェントの自由記述出力（試したアプローチと失敗理由が直接得られる）
 2. テスト出力（どのテストがどう失敗したか）
-3. git diff --name-only（何を変更したか）
+3. `best_commit` との差分（何を変更したか）
 
 ---
 
