@@ -105,6 +105,46 @@ func productFoundClient() *mockProductServiceClient {
 }
 
 // ---------------------------------------------------------------------------
+// Tests: GetCart — バリデーション
+// ---------------------------------------------------------------------------
+
+func TestGetCart_Validation(t *testing.T) {
+	tests := []struct {
+		name       string
+		customerID int64
+	}{
+		{
+			name:       "customer_id が 0",
+			customerID: 0,
+		},
+		{
+			name:       "customer_id が負数",
+			customerID: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := &CartServiceHandler{
+				q:             &mockCartQuerier{},
+				productClient: &mockProductServiceClient{},
+			}
+
+			_, err := handler.GetCart(
+				context.Background(),
+				connect.NewRequest(&ecv1.GetCartRequest{CustomerId: tt.customerID}),
+			)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+				t.Errorf("error code = %v, want %v", got, connect.CodeInvalidArgument)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Tests: AddItem
 // ---------------------------------------------------------------------------
 

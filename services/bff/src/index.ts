@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { toJson } from "@bufbuild/protobuf";
-import { createClient } from "@connectrpc/connect";
+import { createClient, ConnectError, Code } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-node";
 import {
   ProductService,
@@ -33,6 +33,38 @@ const ecSiteTransport = createConnectTransport({
 const cartClient = createClient(CartService, ecSiteTransport);
 
 const app = Fastify({ logger: true });
+
+const connectCodeToHttpStatus: Record<number, number> = {
+  [Code.Canceled]: 499,
+  [Code.InvalidArgument]: 400,
+  [Code.NotFound]: 404,
+  [Code.AlreadyExists]: 409,
+  [Code.PermissionDenied]: 403,
+  [Code.Unauthenticated]: 401,
+  [Code.ResourceExhausted]: 429,
+  [Code.FailedPrecondition]: 400,
+  [Code.Aborted]: 409,
+  [Code.OutOfRange]: 400,
+  [Code.Unimplemented]: 501,
+  [Code.Unavailable]: 503,
+  [Code.DeadlineExceeded]: 504,
+};
+
+app.setErrorHandler((error, req, reply) => {
+  if (error instanceof ConnectError) {
+    const status = connectCodeToHttpStatus[error.code] ?? 500;
+    if (status >= 500) {
+      req.log.error(
+        { err: error, connectCode: error.code, url: req.url },
+        "upstream connect call failed",
+      );
+      return reply.status(status).send({ error: "internal server error" });
+    }
+    return reply.status(status).send({ error: error.rawMessage });
+  }
+  req.log.error({ err: error, url: req.url }, "request failed");
+  return reply.status(500).send({ error: "internal server error" });
+});
 
 app.get("/health", async () => {
   return { status: "ok" };

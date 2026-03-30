@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/mail"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -32,9 +33,23 @@ func (h *CustomerServiceHandler) CreateCustomer(
 	ctx context.Context,
 	req *connect.Request[customerv1.CreateCustomerRequest],
 ) (*connect.Response[customerv1.CreateCustomerResponse], error) {
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+	if req.Msg.Email == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+	if _, err := mail.ParseAddress(req.Msg.Email); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Msg.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("password too long"))
+		}
+		slog.ErrorContext(ctx, "bcrypt failed", "error", err, "method", "CreateCustomer")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	customer, err := h.store.CreateCustomer(ctx, db.CreateCustomerParams{

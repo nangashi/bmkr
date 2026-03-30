@@ -35,6 +35,16 @@ func (h *ProductServiceHandler) CreateProduct(
 	ctx context.Context,
 	req *connect.Request[productv1.CreateProductRequest],
 ) (*connect.Response[productv1.CreateProductResponse], error) {
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+	if req.Msg.Price < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+	if req.Msg.StockQuantity < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+
 	product, err := h.store.CreateProduct(ctx, db.CreateProductParams{
 		Name:          req.Msg.Name,
 		Description:   req.Msg.Description,
@@ -135,7 +145,8 @@ func (h *ProductServiceHandler) BatchGetProducts(
 
 	products, err := h.store.GetProductsByIDs(ctx, uniqueIDs)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "BatchGetProducts")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	protoProducts := make([]*productv1.Product, 0, len(products))
