@@ -20,10 +20,10 @@ import (
 
 type mockCartQuerier struct {
 	getCartByCustomerIDFn    func(ctx context.Context, customerID int64) (db.Cart, error)
-	createCartFn             func(ctx context.Context, customerID int64) (db.Cart, error)
+	createCartIfNotExistsFn  func(ctx context.Context, customerID int64) error
 	listCartItemsFn          func(ctx context.Context, cartID int64) ([]db.CartItem, error)
-	upsertCartItemFn         func(ctx context.Context, arg db.UpsertCartItemParams) error
-	removeCartItemFn         func(ctx context.Context, arg db.RemoveCartItemParams) error
+	upsertCartItemFn         func(ctx context.Context, arg db.UpsertCartItemParams) (int64, error)
+	removeCartItemFn         func(ctx context.Context, arg db.RemoveCartItemParams) (int64, error)
 	updateCartItemQuantityFn func(ctx context.Context, arg db.UpdateCartItemQuantityParams) (int64, error)
 	getCartItemFn            func(ctx context.Context, arg db.GetCartItemParams) (db.CartItem, error)
 }
@@ -35,11 +35,11 @@ func (m *mockCartQuerier) GetCartByCustomerID(ctx context.Context, customerID in
 	panic("GetCartByCustomerID not expected")
 }
 
-func (m *mockCartQuerier) CreateCart(ctx context.Context, customerID int64) (db.Cart, error) {
-	if m.createCartFn != nil {
-		return m.createCartFn(ctx, customerID)
+func (m *mockCartQuerier) CreateCartIfNotExists(ctx context.Context, customerID int64) error {
+	if m.createCartIfNotExistsFn != nil {
+		return m.createCartIfNotExistsFn(ctx, customerID)
 	}
-	panic("CreateCart not expected")
+	panic("CreateCartIfNotExists not expected")
 }
 
 func (m *mockCartQuerier) ListCartItems(ctx context.Context, cartID int64) ([]db.CartItem, error) {
@@ -49,14 +49,14 @@ func (m *mockCartQuerier) ListCartItems(ctx context.Context, cartID int64) ([]db
 	panic("ListCartItems not expected")
 }
 
-func (m *mockCartQuerier) UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) error {
+func (m *mockCartQuerier) UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) (int64, error) {
 	if m.upsertCartItemFn != nil {
 		return m.upsertCartItemFn(ctx, arg)
 	}
 	panic("UpsertCartItem not expected")
 }
 
-func (m *mockCartQuerier) RemoveCartItem(ctx context.Context, arg db.RemoveCartItemParams) error {
+func (m *mockCartQuerier) RemoveCartItem(ctx context.Context, arg db.RemoveCartItemParams) (int64, error) {
 	if m.removeCartItemFn != nil {
 		return m.removeCartItemFn(ctx, arg)
 	}
@@ -105,40 +105,138 @@ func productFoundClient() *mockProductServiceClient {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: GetCart — バリデーション
+// Tests: GetCart (getOrCreateCart の各分岐をカバー)
 // ---------------------------------------------------------------------------
 
-func TestGetCart_Validation(t *testing.T) {
+func TestGetCart(t *testing.T) {
 	tests := []struct {
-		name       string
-		customerID int64
+		name     string
+		req      *ecv1.GetCartRequest
+		querier  func() *mockCartQuerier
+		wantCode connect.Code
+		wantErr  bool
 	}{
 		{
-			name:       "customer_id が 0",
-			customerID: 0,
+			name: "success with existing cart",
+			req:  &ecv1.GetCartRequest{CustomerId: 100},
+			querier: func() *mockCartQuerier {
+				return successQuerier()
+			},
+			wantErr: false,
 		},
 		{
-			name:       "customer_id が負数",
-			customerID: -1,
+			name: "success with new cart creation",
+			req:  &ecv1.GetCartRequest{CustomerId: 100},
+			querier: func() *mockCartQuerier {
+				cart := testCart()
+				items := testCartItems()
+				callCount := 0
+				return &mockCartQuerier{
+					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
+						callCount++
+						if callCount == 1 {
+							return db.Cart{}, pgx.ErrNoRows
+						}
+						return cart, nil
+					},
+					createCartIfNotExistsFn: func(_ context.Context, _ int64) error {
+						return nil
+					},
+					listCartItemsFn: func(_ context.Context, _ int64) ([]db.CartItem, error) {
+						return items, nil
+					},
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "internal: GetCartByCustomerID non-ErrNoRows error",
+			req:  &ecv1.GetCartRequest{CustomerId: 100},
+			querier: func() *mockCartQuerier {
+				return &mockCartQuerier{
+					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
+						return db.Cart{}, errDB
+					},
+				}
+			},
+			wantCode: connect.CodeInternal,
+			wantErr:  true,
+		},
+		{
+			name: "internal: CreateCartIfNotExists error",
+			req:  &ecv1.GetCartRequest{CustomerId: 100},
+			querier: func() *mockCartQuerier {
+				return &mockCartQuerier{
+					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
+						return db.Cart{}, pgx.ErrNoRows
+					},
+					createCartIfNotExistsFn: func(_ context.Context, _ int64) error {
+						return errDB
+					},
+				}
+			},
+			wantCode: connect.CodeInternal,
+			wantErr:  true,
+		},
+		{
+			name: "internal: re-fetch GetCartByCustomerID error after create",
+			req:  &ecv1.GetCartRequest{CustomerId: 100},
+			querier: func() *mockCartQuerier {
+				callCount := 0
+				return &mockCartQuerier{
+					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
+						callCount++
+						if callCount == 1 {
+							return db.Cart{}, pgx.ErrNoRows
+						}
+						return db.Cart{}, errDB
+					},
+					createCartIfNotExistsFn: func(_ context.Context, _ int64) error {
+						return nil
+					},
+				}
+			},
+			wantCode: connect.CodeInternal,
+			wantErr:  true,
+		},
+		{
+			name: "internal: ListCartItems DB error",
+			req:  &ecv1.GetCartRequest{CustomerId: 100},
+			querier: func() *mockCartQuerier {
+				q := successQuerier()
+				q.listCartItemsFn = func(_ context.Context, _ int64) ([]db.CartItem, error) {
+					return nil, errDB
+				}
+				return q
+			},
+			wantCode: connect.CodeInternal,
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := &CartServiceHandler{
-				q:             &mockCartQuerier{},
+				q:             tt.querier(),
 				productClient: &mockProductServiceClient{},
 			}
 
-			_, err := handler.GetCart(
-				context.Background(),
-				connect.NewRequest(&ecv1.GetCartRequest{CustomerId: tt.customerID}),
-			)
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
-				t.Errorf("error code = %v, want %v", got, connect.CodeInvalidArgument)
+			resp, err := handler.GetCart(context.Background(), connect.NewRequest(tt.req))
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if got := connect.CodeOf(err); got != tt.wantCode {
+					t.Errorf("error code = %v, want %v", got, tt.wantCode)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				if resp == nil || resp.Msg.Cart == nil {
+					t.Fatal("expected non-nil response with cart")
+				}
 			}
 		})
 	}
@@ -162,8 +260,8 @@ func TestAddItem(t *testing.T) {
 			req:  &ecv1.AddItemRequest{CustomerId: 100, ProductId: 200, Quantity: 3},
 			querier: func() *mockCartQuerier {
 				q := successQuerier()
-				q.upsertCartItemFn = func(_ context.Context, _ db.UpsertCartItemParams) error {
-					return nil
+				q.upsertCartItemFn = func(_ context.Context, _ db.UpsertCartItemParams) (int64, error) {
+					return 1, nil
 				}
 				return q
 			},
@@ -176,15 +274,20 @@ func TestAddItem(t *testing.T) {
 			querier: func() *mockCartQuerier {
 				cart := testCart()
 				items := testCartItems()
+				callCount := 0
 				return &mockCartQuerier{
 					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
-						return db.Cart{}, pgx.ErrNoRows
-					},
-					createCartFn: func(_ context.Context, _ int64) (db.Cart, error) {
+						callCount++
+						if callCount == 1 {
+							return db.Cart{}, pgx.ErrNoRows
+						}
 						return cart, nil
 					},
-					upsertCartItemFn: func(_ context.Context, _ db.UpsertCartItemParams) error {
+					createCartIfNotExistsFn: func(_ context.Context, _ int64) error {
 						return nil
+					},
+					upsertCartItemFn: func(_ context.Context, _ db.UpsertCartItemParams) (int64, error) {
+						return 1, nil
 					},
 					listCartItemsFn: func(_ context.Context, _ int64) ([]db.CartItem, error) {
 						return items, nil
@@ -261,10 +364,63 @@ func TestAddItem(t *testing.T) {
 			req:  &ecv1.AddItemRequest{CustomerId: 100, ProductId: 200, Quantity: 1},
 			querier: func() *mockCartQuerier {
 				q := successQuerier()
-				q.upsertCartItemFn = func(_ context.Context, _ db.UpsertCartItemParams) error {
-					return errDB
+				q.upsertCartItemFn = func(_ context.Context, _ db.UpsertCartItemParams) (int64, error) {
+					return 0, errDB
 				}
 				return q
+			},
+			client:   productFoundClient,
+			wantCode: connect.CodeInternal,
+			wantErr:  true,
+		},
+		{
+			name: "internal: UpsertCartItem rows == 0 defensive check",
+			req:  &ecv1.AddItemRequest{CustomerId: 100, ProductId: 200, Quantity: 1},
+			querier: func() *mockCartQuerier {
+				q := successQuerier()
+				q.upsertCartItemFn = func(_ context.Context, _ db.UpsertCartItemParams) (int64, error) {
+					return 0, nil // 0 rows affected, no error
+				}
+				return q
+			},
+			client:   productFoundClient,
+			wantCode: connect.CodeInternal,
+			wantErr:  true,
+		},
+		{
+			name: "internal: CreateCartIfNotExists error via getOrCreateCart",
+			req:  &ecv1.AddItemRequest{CustomerId: 100, ProductId: 200, Quantity: 1},
+			querier: func() *mockCartQuerier {
+				return &mockCartQuerier{
+					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
+						return db.Cart{}, pgx.ErrNoRows
+					},
+					createCartIfNotExistsFn: func(_ context.Context, _ int64) error {
+						return errDB
+					},
+				}
+			},
+			client:   productFoundClient,
+			wantCode: connect.CodeInternal,
+			wantErr:  true,
+		},
+		{
+			name: "internal: re-fetch error after cart creation via getOrCreateCart",
+			req:  &ecv1.AddItemRequest{CustomerId: 100, ProductId: 200, Quantity: 1},
+			querier: func() *mockCartQuerier {
+				callCount := 0
+				return &mockCartQuerier{
+					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
+						callCount++
+						if callCount == 1 {
+							return db.Cart{}, pgx.ErrNoRows
+						}
+						return db.Cart{}, errDB
+					},
+					createCartIfNotExistsFn: func(_ context.Context, _ int64) error {
+						return nil
+					},
+				}
 			},
 			client:   productFoundClient,
 			wantCode: connect.CodeInternal,
@@ -321,11 +477,8 @@ func TestRemoveItem(t *testing.T) {
 					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
 						return cart, nil
 					},
-					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
-						return db.CartItem{ID: 10, CartID: 1, ProductID: 200, Quantity: 2, CreatedAt: pgtype.Timestamptz{Valid: true}}, nil
-					},
-					removeCartItemFn: func(_ context.Context, _ db.RemoveCartItemParams) error {
-						return nil
+					removeCartItemFn: func(_ context.Context, _ db.RemoveCartItemParams) (int64, error) {
+						return 1, nil
 					},
 					listCartItemsFn: func(_ context.Context, _ int64) ([]db.CartItem, error) {
 						return []db.CartItem{}, nil // empty after removal
@@ -374,8 +527,8 @@ func TestRemoveItem(t *testing.T) {
 					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
 						return cart, nil
 					},
-					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
-						return db.CartItem{}, pgx.ErrNoRows
+					removeCartItemFn: func(_ context.Context, _ db.RemoveCartItemParams) (int64, error) {
+						return 0, nil
 					},
 				}
 			},
@@ -391,11 +544,8 @@ func TestRemoveItem(t *testing.T) {
 					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
 						return cart, nil
 					},
-					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
-						return db.CartItem{ID: 10, CartID: 1, ProductID: 200, Quantity: 2, CreatedAt: pgtype.Timestamptz{Valid: true}}, nil
-					},
-					removeCartItemFn: func(_ context.Context, _ db.RemoveCartItemParams) error {
-						return errDB
+					removeCartItemFn: func(_ context.Context, _ db.RemoveCartItemParams) (int64, error) {
+						return 0, errDB
 					},
 				}
 			},

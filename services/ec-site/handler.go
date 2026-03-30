@@ -23,10 +23,10 @@ import (
 // テストではモック実装を注入する（handler-testability.md 準拠）。
 type cartQuerier interface {
 	GetCartByCustomerID(ctx context.Context, customerID int64) (db.Cart, error)
-	CreateCart(ctx context.Context, customerID int64) (db.Cart, error)
+	CreateCartIfNotExists(ctx context.Context, customerID int64) error
 	ListCartItems(ctx context.Context, cartID int64) ([]db.CartItem, error)
-	UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) error
-	RemoveCartItem(ctx context.Context, arg db.RemoveCartItemParams) error
+	UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) (int64, error)
+	RemoveCartItem(ctx context.Context, arg db.RemoveCartItemParams) (int64, error)
 	UpdateCartItemQuantity(ctx context.Context, arg db.UpdateCartItemQuantityParams) (int64, error)
 	GetCartItem(ctx context.Context, arg db.GetCartItemParams) (db.CartItem, error)
 }
@@ -36,29 +36,32 @@ type CartServiceHandler struct {
 	productClient productv1connect.ProductServiceClient
 }
 
+// wip: getOrCreateCart は customer_id に対応するカートを取得し、存在しなければ作成する。
+// wip:
+// wip: 動作:
+// wip:   - GetCartByCustomerID で取得試行
+// wip:   - ErrNoRows の場合、CreateCartIfNotExists で INSERT ON CONFLICT DO NOTHING
+// wip:   - 再度 GetCartByCustomerID で取得（並行リクエストで先に作成された場合も含む）
+// wip:   - 再取得でもエラーの場合は CodeInternal を返す
+// wip:
+// wip: エラー:
+// wip:   - GetCartByCustomerID の非 ErrNoRows エラー → CodeInternal
+// wip:   - CreateCartIfNotExists のエラー → CodeInternal
+// wip:   - 再取得の GetCartByCustomerID エラー → CodeInternal
+func (h *CartServiceHandler) getOrCreateCart(ctx context.Context, customerID int64) (db.Cart, error) {
+	panic("not implemented")
+}
+
 func (h *CartServiceHandler) GetCart(
 	ctx context.Context,
 	req *connect.Request[ecv1.GetCartRequest],
 ) (*connect.Response[ecv1.GetCartResponse], error) {
 	customerID := req.Msg.CustomerId
 
-	if customerID <= 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
-	}
-
-	// Get or create cart
-	cart, err := h.q.GetCartByCustomerID(ctx, customerID)
+	// wip: getOrCreateCart でカートを取得または作成する（重複排除済み）
+	cart, err := h.getOrCreateCart(ctx, customerID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			cart, err = h.q.CreateCart(ctx, customerID)
-			if err != nil {
-				slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.CreateCart")
-				return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-			}
-		} else {
-			slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.GetCartByCustomerID")
-			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-		}
+		return nil, err
 	}
 
 	// List cart items
@@ -68,20 +71,7 @@ func (h *CartServiceHandler) GetCart(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	// Fetch product info in batch (log only)
-	if len(items) > 0 {
-		productIDs := make([]int64, len(items))
-		for i, item := range items {
-			productIDs[i] = item.ProductID
-		}
-
-		_, err := h.productClient.BatchGetProducts(ctx, connect.NewRequest(&productv1.BatchGetProductsRequest{
-			Ids: productIDs,
-		}))
-		if err != nil {
-			slog.WarnContext(ctx, "failed to batch get products", "error", err)
-		}
-	}
+	// wip: BatchGetProducts の呼び出しを削除した（結果未使用のため）
 
 	return connect.NewResponse(&ecv1.GetCartResponse{
 		Cart: dbCartToProto(cart, items),
@@ -101,18 +91,10 @@ func (h *CartServiceHandler) AddItem(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
 	}
 
-	cart, err := h.q.GetCartByCustomerID(ctx, req.Msg.CustomerId)
+	// wip: getOrCreateCart でカートを取得または作成する（重複排除済み）
+	cart, err := h.getOrCreateCart(ctx, req.Msg.CustomerId)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			cart, err = h.q.CreateCart(ctx, req.Msg.CustomerId)
-			if err != nil {
-				slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.CreateCart")
-				return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-			}
-		} else {
-			slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.GetCartByCustomerID")
-			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-		}
+		return nil, err
 	}
 
 	_, err = h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
@@ -126,13 +108,18 @@ func (h *CartServiceHandler) AddItem(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	err = h.q.UpsertCartItem(ctx, db.UpsertCartItemParams{
+	// wip: UpsertCartItem の rows == 0 は UPSERT のため実質発生しないが、防御的にチェックする
+	rows, err := h.q.UpsertCartItem(ctx, db.UpsertCartItemParams{
 		CartID:    cart.ID,
 		ProductID: req.Msg.ProductId,
 		Quantity:  req.Msg.Quantity,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.UpsertCartItem")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+	if rows == 0 {
+		slog.ErrorContext(ctx, "unexpected zero rows from upsert", "method", "AddItem.UpsertCartItem")
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
@@ -165,25 +152,17 @@ func (h *CartServiceHandler) RemoveItem(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	_, err = h.q.GetCartItem(ctx, db.GetCartItemParams{
-		ID:     req.Msg.ItemId,
-		CartID: cart.ID,
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
-		}
-		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.GetCartItem")
-		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-	}
-
-	err = h.q.RemoveCartItem(ctx, db.RemoveCartItemParams{
+	// wip: RemoveCartItem の rows == 0 で item not found を判定する（TOCTOU 解消）
+	rows, err := h.q.RemoveCartItem(ctx, db.RemoveCartItemParams{
 		ID:     req.Msg.ItemId,
 		CartID: cart.ID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.RemoveCartItem")
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+	if rows == 0 {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
 	}
 
 	items, err := h.q.ListCartItems(ctx, cart.ID)
