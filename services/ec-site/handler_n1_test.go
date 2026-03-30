@@ -9,8 +9,8 @@ import (
 
 // TestGetCart_NoGetProductLoop は handler.go の GetCart メソッド内に
 // GetProduct の逐次呼び出しが存在しないことを go/ast で静的に検証する。
-// N+1 RPC の解消後は BatchGetProducts を使うため、GetProduct の呼び出しが
-// GetCart 内に残っていてはならない。
+// GetCart は商品情報を返さない設計のため、GetProduct の呼び出しが
+// GetCart 内に存在してはならない。
 func TestGetCart_NoGetProductLoop(t *testing.T) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "handler.go", nil, 0)
@@ -47,7 +47,7 @@ func TestGetCart_NoGetProductLoop(t *testing.T) {
 			return true
 		}
 		if sel.Sel.Name == "GetProduct" {
-			t.Errorf("GetCart contains a call to GetProduct at %s; expected BatchGetProducts to replace N+1 calls",
+			t.Errorf("GetCart contains a call to GetProduct at %s; GetCart should not call product service",
 				fset.Position(call.Pos()))
 		}
 		return true

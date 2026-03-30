@@ -23,12 +23,11 @@ import (
 // テストではモック実装を注入する（handler-testability.md 準拠）。
 type cartQuerier interface {
 	GetCartByCustomerID(ctx context.Context, customerID int64) (db.Cart, error)
-	CreateCart(ctx context.Context, customerID int64) (db.Cart, error)
+	CreateCartIfNotExists(ctx context.Context, customerID int64) error
 	ListCartItems(ctx context.Context, cartID int64) ([]db.CartItem, error)
-	UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) error
-	RemoveCartItem(ctx context.Context, arg db.RemoveCartItemParams) error
+	UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) (int64, error)
+	RemoveCartItem(ctx context.Context, arg db.RemoveCartItemParams) (int64, error)
 	UpdateCartItemQuantity(ctx context.Context, arg db.UpdateCartItemQuantityParams) (int64, error)
-	GetCartItem(ctx context.Context, arg db.GetCartItemParams) (db.CartItem, error)
 }
 
 type CartServiceHandler struct {
@@ -36,25 +35,38 @@ type CartServiceHandler struct {
 	productClient productv1connect.ProductServiceClient
 }
 
+// getOrCreateCart retrieves an existing cart or creates one for the customer.
+// Uses INSERT ON CONFLICT DO NOTHING + re-fetch to prevent duplicate carts
+// under concurrent requests.
+func (h *CartServiceHandler) getOrCreateCart(ctx context.Context, customerID int64) (db.Cart, error) {
+	cart, err := h.q.GetCartByCustomerID(ctx, customerID)
+	if err == nil {
+		return cart, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return db.Cart{}, err
+	}
+
+	if err := h.q.CreateCartIfNotExists(ctx, customerID); err != nil {
+		return db.Cart{}, err
+	}
+
+	return h.q.GetCartByCustomerID(ctx, customerID)
+}
+
 func (h *CartServiceHandler) GetCart(
 	ctx context.Context,
 	req *connect.Request[ecv1.GetCartRequest],
 ) (*connect.Response[ecv1.GetCartResponse], error) {
 	customerID := req.Msg.CustomerId
+	if customerID <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
 
-	// Get or create cart
-	cart, err := h.q.GetCartByCustomerID(ctx, customerID)
+	cart, err := h.getOrCreateCart(ctx, customerID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			cart, err = h.q.CreateCart(ctx, customerID)
-			if err != nil {
-				slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.CreateCart")
-				return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-			}
-		} else {
-			slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.GetCartByCustomerID")
-			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-		}
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.getOrCreateCart")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	// List cart items
@@ -62,21 +74,6 @@ func (h *CartServiceHandler) GetCart(
 	if err != nil {
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.ListCartItems")
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-	}
-
-	// Fetch product info in batch (log only)
-	if len(items) > 0 {
-		productIDs := make([]int64, len(items))
-		for i, item := range items {
-			productIDs[i] = item.ProductID
-		}
-
-		_, err := h.productClient.BatchGetProducts(ctx, connect.NewRequest(&productv1.BatchGetProductsRequest{
-			Ids: productIDs,
-		}))
-		if err != nil {
-			slog.WarnContext(ctx, "failed to batch get products", "error", err)
-		}
 	}
 
 	return connect.NewResponse(&ecv1.GetCartResponse{
@@ -97,18 +94,10 @@ func (h *CartServiceHandler) AddItem(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
 	}
 
-	cart, err := h.q.GetCartByCustomerID(ctx, req.Msg.CustomerId)
+	cart, err := h.getOrCreateCart(ctx, req.Msg.CustomerId)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			cart, err = h.q.CreateCart(ctx, req.Msg.CustomerId)
-			if err != nil {
-				slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.CreateCart")
-				return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-			}
-		} else {
-			slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.GetCartByCustomerID")
-			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-		}
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.getOrCreateCart")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
 	_, err = h.productClient.GetProduct(ctx, connect.NewRequest(&productv1.GetProductRequest{
@@ -122,13 +111,17 @@ func (h *CartServiceHandler) AddItem(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	err = h.q.UpsertCartItem(ctx, db.UpsertCartItemParams{
+	rows, err := h.q.UpsertCartItem(ctx, db.UpsertCartItemParams{
 		CartID:    cart.ID,
 		ProductID: req.Msg.ProductId,
 		Quantity:  req.Msg.Quantity,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "AddItem.UpsertCartItem")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+	if rows == 0 {
+		slog.ErrorContext(ctx, "unexpected zero rows affected", "method", "AddItem.UpsertCartItem")
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
@@ -161,25 +154,16 @@ func (h *CartServiceHandler) RemoveItem(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	_, err = h.q.GetCartItem(ctx, db.GetCartItemParams{
-		ID:     req.Msg.ItemId,
-		CartID: cart.ID,
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
-		}
-		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.GetCartItem")
-		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-	}
-
-	err = h.q.RemoveCartItem(ctx, db.RemoveCartItemParams{
+	rows, err := h.q.RemoveCartItem(ctx, db.RemoveCartItemParams{
 		ID:     req.Msg.ItemId,
 		CartID: cart.ID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "RemoveItem.RemoveCartItem")
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+	if rows == 0 {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
 	}
 
 	items, err := h.q.ListCartItems(ctx, cart.ID)
@@ -212,18 +196,6 @@ func (h *CartServiceHandler) UpdateQuantity(
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("cart not found"))
 		}
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.GetCartByCustomerID")
-		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-	}
-
-	_, err = h.q.GetCartItem(ctx, db.GetCartItemParams{
-		ID:     req.Msg.ItemId,
-		CartID: cart.ID,
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
-		}
-		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.GetCartItem")
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
