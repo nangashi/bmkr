@@ -7,7 +7,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	ecv1 "github.com/nangashi/bmkr/gen/go/ec/v1"
 	productv1 "github.com/nangashi/bmkr/gen/go/product/v1"
@@ -379,7 +378,7 @@ func TestAddItem(t *testing.T) {
 			querier: func() *mockCartQuerier {
 				q := successQuerier()
 				q.upsertCartItemFn = func(_ context.Context, _ db.UpsertCartItemParams) (int64, error) {
-					return 0, nil // 0 rows affected, no error
+					return 0, nil
 				}
 				return q
 			},
@@ -604,9 +603,6 @@ func TestUpdateQuantity(t *testing.T) {
 					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
 						return cart, nil
 					},
-					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
-						return db.CartItem{ID: 10, CartID: 1, ProductID: 200, Quantity: 2, CreatedAt: pgtype.Timestamptz{Valid: true}}, nil
-					},
 					updateCartItemQuantityFn: func(_ context.Context, _ db.UpdateCartItemQuantityParams) (int64, error) {
 						return 1, nil
 					},
@@ -666,8 +662,8 @@ func TestUpdateQuantity(t *testing.T) {
 					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
 						return cart, nil
 					},
-					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
-						return db.CartItem{}, pgx.ErrNoRows
+					updateCartItemQuantityFn: func(_ context.Context, _ db.UpdateCartItemQuantityParams) (int64, error) {
+						return 0, nil
 					},
 				}
 			},
@@ -682,9 +678,6 @@ func TestUpdateQuantity(t *testing.T) {
 				return &mockCartQuerier{
 					getCartByCustomerIDFn: func(_ context.Context, _ int64) (db.Cart, error) {
 						return cart, nil
-					},
-					getCartItemFn: func(_ context.Context, _ db.GetCartItemParams) (db.CartItem, error) {
-						return db.CartItem{ID: 10, CartID: 1, ProductID: 200, Quantity: 2, CreatedAt: pgtype.Timestamptz{Valid: true}}, nil
 					},
 					updateCartItemQuantityFn: func(_ context.Context, _ db.UpdateCartItemQuantityParams) (int64, error) {
 						return 0, errDB

@@ -67,13 +67,11 @@ func (h *CartServiceHandler) GetCart(
 ) (*connect.Response[ecv1.GetCartResponse], error) {
 	customerID := req.Msg.CustomerId
 
-	// Get or create cart
 	cart, err := h.getOrCreateCart(ctx, customerID)
 	if err != nil {
 		return nil, err
 	}
 
-	// List cart items
 	items, err := h.q.ListCartItems(ctx, cart.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "GetCart.ListCartItems")
@@ -98,7 +96,6 @@ func (h *CartServiceHandler) AddItem(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
 	}
 
-	// Get or create cart
 	cart, err := h.getOrCreateCart(ctx, req.Msg.CustomerId)
 	if err != nil {
 		return nil, err
@@ -115,7 +112,6 @@ func (h *CartServiceHandler) AddItem(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	// UpsertCartItem の rows == 0 は UPSERT のため実質発生しないが、防御的にチェックする
 	rows, err := h.q.UpsertCartItem(ctx, db.UpsertCartItemParams{
 		CartID:    cart.ID,
 		ProductID: req.Msg.ProductId,
@@ -159,7 +155,6 @@ func (h *CartServiceHandler) RemoveItem(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	// RemoveCartItem の rows == 0 で item not found を判定する（TOCTOU 解消）
 	rows, err := h.q.RemoveCartItem(ctx, db.RemoveCartItemParams{
 		ID:     req.Msg.ItemId,
 		CartID: cart.ID,
@@ -202,18 +197,6 @@ func (h *CartServiceHandler) UpdateQuantity(
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("cart not found"))
 		}
 		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.GetCartByCustomerID")
-		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-	}
-
-	_, err = h.q.GetCartItem(ctx, db.GetCartItemParams{
-		ID:     req.Msg.ItemId,
-		CartID: cart.ID,
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("item not found"))
-		}
-		slog.ErrorContext(ctx, "database error", "error", err, "method", "UpdateQuantity.GetCartItem")
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 

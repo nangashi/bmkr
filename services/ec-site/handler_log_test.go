@@ -238,12 +238,12 @@ func testCartItems() []db.CartItem {
 
 // ---------------------------------------------------------------------------
 // newTestHandler は DBTX モック経由で CartServiceHandler を構築するヘルパー。
-// getCartByCustomerID / createCart は QueryRow、listCartItems は Query に対応する。
+// getCartByCustomerID は QueryRow、listCartItems は Query に対応する。
 // ---------------------------------------------------------------------------
 
 type dbtxScenario struct {
 	// QueryRow の呼び出し回数に応じて戻す Row を制御する。
-	// getCartByCustomerID → 1回目, createCart → 2回目 (新規作成フローの場合)
+	// getCartByCustomerID → 1回目, getCartByCustomerID(再取得) → 2回目 (新規作成フローの場合)
 	queryRowCalls []*mockRow
 	queryRowIdx   int
 
@@ -280,7 +280,7 @@ func TestGetCart_NewCartNormalFlow_NoLogs(t *testing.T) {
 
 	items := testCartItems()
 	scenario := &dbtxScenario{
-		// 1回目: GetCartByCustomerID → ErrNoRows、2回目: CreateCart → 成功
+		// 1回目: GetCartByCustomerID → ErrNoRows、2回目: GetCartByCustomerID(再取得) → 成功
 		queryRowCalls:     []*mockRow{noCartRow(), cartRow(testCart())},
 		listCartItemsRows: cartItemRows(items),
 	}
