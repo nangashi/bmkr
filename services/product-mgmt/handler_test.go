@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -574,4 +575,103 @@ func make101IDs() []int64 {
 		ids[i] = int64(i + 1)
 	}
 	return ids
+}
+
+// ---------------------------------------------------------------------------
+// Tests — CreateProduct RPC: バリデーション
+// ---------------------------------------------------------------------------
+
+func TestCreateProduct_Validation(t *testing.T) {
+	tests := []struct {
+		name string
+		req  *productv1.CreateProductRequest
+	}{
+		{
+			name: "name が空文字",
+			req: &productv1.CreateProductRequest{
+				Name:          "",
+				Description:   "説明",
+				Price:         1000,
+				StockQuantity: 10,
+			},
+		},
+		{
+			name: "price が負数",
+			req: &productv1.CreateProductRequest{
+				Name:          "商品A",
+				Description:   "説明",
+				Price:         -1,
+				StockQuantity: 10,
+			},
+		},
+		{
+			name: "stock_quantity が負数",
+			req: &productv1.CreateProductRequest{
+				Name:          "商品A",
+				Description:   "説明",
+				Price:         1000,
+				StockQuantity: -1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockListProductStore{
+				CreateProductFn: func(_ context.Context, _ db.CreateProductParams) (db.Product, error) {
+					t.Fatal("store.CreateProduct should not be called on validation error")
+					return db.Product{}, nil
+				},
+			}
+			h := &ProductServiceHandler{store: store}
+
+			_, err := h.CreateProduct(
+				context.Background(),
+				connect.NewRequest(tt.req),
+			)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var connectErr *connect.Error
+			if !errors.As(err, &connectErr) {
+				t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+			}
+			if connectErr.Code() != connect.CodeInvalidArgument {
+				t.Errorf("error code = %v, want %v", connectErr.Code(), connect.CodeInvalidArgument)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Tests — BatchGetProducts RPC: DB エラーメッセージの隠蔽
+// ---------------------------------------------------------------------------
+
+func TestBatchGetProducts_DBError_HidesRawMessage(t *testing.T) {
+	rawDBError := "pq: connection refused to host 10.0.0.1:5432"
+	store := &mockListProductStore{
+		GetProductsByIDsFn: func(_ context.Context, _ []int64) ([]db.Product, error) {
+			return nil, errors.New(rawDBError)
+		},
+	}
+	h := &ProductServiceHandler{store: store}
+
+	_, err := h.BatchGetProducts(
+		context.Background(),
+		connect.NewRequest(&productv1.BatchGetProductsRequest{Ids: []int64{1}}),
+	)
+	if err == nil {
+		t.Fatal("expected error for DB failure, got nil")
+	}
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+	}
+	if connectErr.Code() != connect.CodeInternal {
+		t.Errorf("error code = %v, want %v", connectErr.Code(), connect.CodeInternal)
+	}
+	// エラーメッセージに生の DB エラーが含まれていないこと
+	if strings.Contains(connectErr.Message(), rawDBError) {
+		t.Errorf("error message should not contain raw DB error, got %q", connectErr.Message())
+	}
 }

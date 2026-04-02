@@ -42,6 +42,10 @@ func (h *CartServiceHandler) GetCart(
 ) (*connect.Response[ecv1.GetCartResponse], error) {
 	customerID := req.Msg.CustomerId
 
+	if customerID <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
+
 	// Get or create cart
 	cart, err := h.q.GetCartByCustomerID(ctx, customerID)
 	if err != nil {

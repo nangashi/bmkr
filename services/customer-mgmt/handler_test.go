@@ -154,3 +154,114 @@ func TestCreateCustomer_DBErrorReturnsInternal(t *testing.T) {
 		t.Errorf("error code = %v, want %v", connectErr.Code(), connect.CodeInternal)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Tests — CreateCustomer: 入力バリデーション
+// ---------------------------------------------------------------------------
+
+func TestCreateCustomer_Validation(t *testing.T) {
+	tests := []struct {
+		name string
+		req  *customerv1.CreateCustomerRequest
+	}{
+		{
+			name: "name が空文字",
+			req: &customerv1.CreateCustomerRequest{
+				Name:     "",
+				Email:    "test@example.com",
+				Password: "valid-password",
+			},
+		},
+		{
+			name: "email が空文字",
+			req: &customerv1.CreateCustomerRequest{
+				Name:     "テストユーザー",
+				Email:    "",
+				Password: "valid-password",
+			},
+		},
+		{
+			name: "email が不正フォーマット（@なし）",
+			req: &customerv1.CreateCustomerRequest{
+				Name:     "テストユーザー",
+				Email:    "invalid-email",
+				Password: "valid-password",
+			},
+		},
+		{
+			name: "email が不正フォーマット（ドメインなし）",
+			req: &customerv1.CreateCustomerRequest{
+				Name:     "テストユーザー",
+				Email:    "user@",
+				Password: "valid-password",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockCustomerStore{
+				CreateCustomerFn: func(_ context.Context, _ db.CreateCustomerParams) (db.Customer, error) {
+					t.Fatal("store.CreateCustomer should not be called on validation error")
+					return db.Customer{}, nil
+				},
+			}
+			h := &CustomerServiceHandler{store: store}
+
+			_, err := h.CreateCustomer(
+				context.Background(),
+				connect.NewRequest(tt.req),
+			)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var connectErr *connect.Error
+			if !errors.As(err, &connectErr) {
+				t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+			}
+			if connectErr.Code() != connect.CodeInvalidArgument {
+				t.Errorf("error code = %v, want %v", connectErr.Code(), connect.CodeInvalidArgument)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Tests — CreateCustomer: bcrypt ErrPasswordTooLong のメッセージ検証
+// ---------------------------------------------------------------------------
+
+func TestCreateCustomer_HashErrorTooLong_ReturnsGenericMessage(t *testing.T) {
+	// bcrypt は 72 バイト超のパスワードで ErrPasswordTooLong を返す
+	longPassword := strings.Repeat("a", 73)
+
+	store := &mockCustomerStore{
+		CreateCustomerFn: func(_ context.Context, _ db.CreateCustomerParams) (db.Customer, error) {
+			t.Fatal("store.CreateCustomer should not be called on hash error")
+			return db.Customer{}, nil
+		},
+	}
+	h := &CustomerServiceHandler{store: store}
+
+	_, err := h.CreateCustomer(
+		context.Background(),
+		connect.NewRequest(&customerv1.CreateCustomerRequest{
+			Name:     "テストユーザー",
+			Email:    "test@example.com",
+			Password: longPassword,
+		}),
+	)
+	if err == nil {
+		t.Fatal("expected error for password too long, got nil")
+	}
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+	}
+	if connectErr.Code() != connect.CodeInvalidArgument {
+		t.Errorf("error code = %v, want %v", connectErr.Code(), connect.CodeInvalidArgument)
+	}
+	// エラーメッセージに bcrypt の内部エラー文字列が漏れていないこと
+	if strings.Contains(connectErr.Message(), bcrypt.ErrPasswordTooLong.Error()) {
+		t.Errorf("error message should not expose bcrypt internal error, got %q", connectErr.Message())
+	}
+}
