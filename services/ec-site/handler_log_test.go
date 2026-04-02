@@ -238,12 +238,12 @@ func testCartItems() []db.CartItem {
 
 // ---------------------------------------------------------------------------
 // newTestHandler は DBTX モック経由で CartServiceHandler を構築するヘルパー。
-// getCartByCustomerID / createCart は QueryRow、listCartItems は Query に対応する。
+// getCartByCustomerID は QueryRow、listCartItems は Query に対応する。
 // ---------------------------------------------------------------------------
 
 type dbtxScenario struct {
 	// QueryRow の呼び出し回数に応じて戻す Row を制御する。
-	// getCartByCustomerID → 1回目, createCart → 2回目 (新規作成フローの場合)
+	// getCartByCustomerID → 1回目, getCartByCustomerID(再取得) → 2回目 (新規作成フローの場合)
 	queryRowCalls []*mockRow
 	queryRowIdx   int
 
@@ -272,112 +272,6 @@ func (s *dbtxScenario) newDBTX() *mockDBTX {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: 商品取得失敗時に slog.WarnContext がログ出力される
-// ---------------------------------------------------------------------------
-
-func TestGetCart_ProductFetchFailure_LogsWarn(t *testing.T) {
-	records := captureSlog(t)
-
-	items := testCartItems() // 2 items: ProductID=200, ProductID=300
-	scenario := &dbtxScenario{
-		queryRowCalls:     []*mockRow{cartRow(testCart())},
-		listCartItemsRows: cartItemRows(items),
-	}
-	queries := db.New(scenario.newDBTX())
-
-	productErr := errors.New("service unavailable")
-	client := &mockProductServiceClient{
-		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
-			return nil, productErr
-		},
-	}
-
-	handler := &CartServiceHandler{
-		q:             queries,
-		productClient: client,
-	}
-
-	resp, err := handler.GetCart(context.Background(), connect.NewRequest(&ecv1.GetCartRequest{
-		CustomerId: 100,
-	}))
-	// 商品取得失敗はエラーにならず、レスポンスは返る
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if resp == nil {
-		t.Fatal("expected non-nil response")
-	}
-
-	// slog.WarnContext が呼ばれていること
-	if len(*records) == 0 {
-		t.Fatal("expected at least one log record, got none")
-	}
-
-	// BatchGetProducts 失敗で WARN ログが1回出ること
-	warnCount := 0
-	for _, rec := range *records {
-		if rec.Level == slog.LevelWarn && rec.Message == "failed to batch get products" {
-			warnCount++
-
-			// error フィールドが含まれること
-			if _, ok := rec.Attrs["error"]; !ok {
-				t.Error("WARN log should contain 'error' attribute")
-			}
-		}
-	}
-
-	if warnCount != 1 {
-		t.Errorf("expected 1 WARN log for 'failed to batch get products', got %d", warnCount)
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Tests: 商品取得失敗時のフィールド値の検証
-// ---------------------------------------------------------------------------
-
-func TestGetCart_ProductFetchFailure_LogFieldValues(t *testing.T) {
-	records := captureSlog(t)
-
-	singleItem := []db.CartItem{
-		{ID: 10, CartID: 1, ProductID: 42, Quantity: 1, CreatedAt: pgtype.Timestamptz{Valid: true}},
-	}
-	scenario := &dbtxScenario{
-		queryRowCalls:     []*mockRow{cartRow(testCart())},
-		listCartItemsRows: cartItemRows(singleItem),
-	}
-	queries := db.New(scenario.newDBTX())
-
-	productErr := errors.New("connection refused")
-	client := &mockProductServiceClient{
-		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
-			return nil, productErr
-		},
-	}
-
-	handler := &CartServiceHandler{
-		q:             queries,
-		productClient: client,
-	}
-
-	_, _ = handler.GetCart(context.Background(), connect.NewRequest(&ecv1.GetCartRequest{
-		CustomerId: 100,
-	}))
-
-	if len(*records) != 1 {
-		t.Fatalf("expected 1 log record, got %d", len(*records))
-	}
-
-	rec := (*records)[0]
-
-	// error の値が productErr であること
-	if errVal, ok := rec.Attrs["error"]; !ok {
-		t.Error("missing 'error' attribute")
-	} else if errVal != productErr {
-		t.Errorf("error = %v, want %v", errVal, productErr)
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Tests: 正常系ではログが出力されない（カート新規作成 + 商品取得成功）
 // ---------------------------------------------------------------------------
 
@@ -386,21 +280,15 @@ func TestGetCart_NewCartNormalFlow_NoLogs(t *testing.T) {
 
 	items := testCartItems()
 	scenario := &dbtxScenario{
-		// 1回目: GetCartByCustomerID → ErrNoRows、2回目: CreateCart → 成功
+		// 1回目: GetCartByCustomerID → ErrNoRows、2回目: GetCartByCustomerID(再取得) → 成功
 		queryRowCalls:     []*mockRow{noCartRow(), cartRow(testCart())},
 		listCartItemsRows: cartItemRows(items),
 	}
 	queries := db.New(scenario.newDBTX())
 
-	client := &mockProductServiceClient{
-		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
-			return connect.NewResponse(&productv1.BatchGetProductsResponse{}), nil
-		},
-	}
-
 	handler := &CartServiceHandler{
 		q:             queries,
-		productClient: client,
+		productClient: &mockProductServiceClient{},
 	}
 
 	resp, err := handler.GetCart(context.Background(), connect.NewRequest(&ecv1.GetCartRequest{
@@ -413,7 +301,7 @@ func TestGetCart_NewCartNormalFlow_NoLogs(t *testing.T) {
 		t.Fatal("expected non-nil response")
 	}
 
-	// カート作成成功・商品取得成功いずれでもログが出力されないこと
+	// カート作成成功でもログが出力されないこと
 	if len(*records) != 0 {
 		t.Errorf("expected no log records in normal flow, got %d:", len(*records))
 		for i, rec := range *records {
@@ -436,15 +324,9 @@ func TestGetCart_ExistingCart_NoLogs(t *testing.T) {
 	}
 	queries := db.New(scenario.newDBTX())
 
-	client := &mockProductServiceClient{
-		BatchGetProductsFn: func(_ context.Context, _ *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error) {
-			return connect.NewResponse(&productv1.BatchGetProductsResponse{}), nil
-		},
-	}
-
 	handler := &CartServiceHandler{
 		q:             queries,
-		productClient: client,
+		productClient: &mockProductServiceClient{},
 	}
 
 	_, err := handler.GetCart(context.Background(), connect.NewRequest(&ecv1.GetCartRequest{
