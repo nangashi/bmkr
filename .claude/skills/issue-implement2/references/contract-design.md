@@ -58,6 +58,7 @@ proto/SQL の変更を含む作業では以下の順序を守る:
 ## 出力
 
 - `.output/issue-implement2/{issue_number}/contract.md`
+- `.output/issue-implement2/{issue_number}/contract-decisions.md`
 - 必要に応じてスタブやシグネチャをコードに追加する
 
 スタブを追加する場合は以下に従う:
@@ -65,3 +66,16 @@ proto/SQL の変更を含む作業では以下の順序を守る:
 - 実装本体は書かない
 - `panic("not implemented")` などの未実装スタブに留める
 - 既存コード内の変更は `// wip:` コメントで振る舞いと不変条件を補足してよい
+
+## contract-decisions.md
+
+計画（`<!-- issue-plan:plan:done -->` コメント内の `### 設計判断` テーブル）と、契約設計で実際に行った判断の差分を記録する。計画どおりの判断はスキップし、差分のみを書く。差分がなければ「計画どおり」と1行だけ書く。
+
+```markdown
+# Contract Decisions
+
+| # | 計画の記述 | 契約での判断 | 変更理由 |
+|---|-----------|-------------|---------|
+```
+
+このファイルは PR 作成時の `## Design Decisions` セクションと振り返りで参照される。

@@ -22,6 +22,10 @@
 - `review_output_path`（`.output/issue-implement2/{issue_number}/review-contract.md`）
 - `output_path`（`.output/issue-implement2/{issue_number}/review-contract-filtered.md`）
 
+## Codex 不使用時のフォールバック
+
+Codex CLI が利用できない場合は、`agents/contract-review.md` を Read で読み込んだ Sonnet モデルのサブエージェント（`model: sonnet`）に契約レビューを委譲する。採用判定は同様に `agents/review-filter.md` で行う。
+
 ## 判定結果の処理
 
 - 採用指摘あり → Opus が契約とスタブを修正する

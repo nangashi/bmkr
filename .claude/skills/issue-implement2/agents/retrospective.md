@@ -10,14 +10,21 @@
 
 | ファイル | 内容 |
 |---------|------|
+| `issue-context.md` | Issue の前提情報 |
+| `scope.md` | スコープ定義 |
 | `contract.md` | 公開契約 |
+| `contract-decisions.md` | 計画との判断差分 |
+| `review-contract.md` / `review-contract-filtered.md` | 契約レビュー結果と採用判定 |
 | `test-strategy.md` | テスト戦略 |
+| `review-test-strategy.md` / `review-test-strategy-filtered.md` | テスト戦略レビュー結果と採用判定 |
 | `red-summary.md` | Red の結果 |
+| `review-red.md` / `review-red-filtered.md` | Red レビュー結果と採用判定 |
 | `failure-clusters.md` | failure 分類 |
-| `review-final.md` / `review-final-filtered.md` | 品質ゲートレビュー結果と採用判定 |
-| `goal-alignment.md` | ゴール整合性チェック結果 |
-| `oscillation-directives.md` | 振動検出の directive |
 | `attempts/` 配下 | 実装ループの試行ログ |
+| `escalation.md` | Escalation の証拠と判定 |
+| `review-final.md` / `review-final-filtered.md` | 品質ゲートレビュー結果と採用判定 |
+| `oscillation-directives.md` | 振動検出の directive |
+| `goal-alignment.md` | ゴール整合性チェック結果 |
 
 ## 分析
 
