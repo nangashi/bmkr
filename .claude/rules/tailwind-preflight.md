@@ -4,9 +4,13 @@ globs: services/ec-site/frontend/src/**/*.tsx
 
 # Tailwind preflight によるスタイルリセット
 
-## アンチパターン
+## アンチパターン1: セマンティック要素のスタイル未指定
 
 Tailwind CSS の preflight（CSS リセット）が有効な環境で、`h1`〜`h6`、`a`、`button`、`table` 等のセマンティック HTML 要素をスタイルなしで使う。preflight がブラウザデフォルトスタイルをリセットするため、これらの要素はプレーンテキストと同じ見た目になる。
+
+## アンチパターン2: inline style の使用
+
+`style={{ display: "grid", gap: "16px" }}` のような inline style を使う。Tailwind のユーティリティクラスと混在し、スタイルの管理が分散する。レスポンシブ対応やホバー状態の表現もできない。Tailwind 環境では常にユーティリティクラスを使う。
 
 ## 正しいパターン
 
