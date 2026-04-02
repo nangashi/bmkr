@@ -79,13 +79,13 @@ Phase 2 がスキップされた場合は Phase 丸ごとスキップ。Phase 1 
 
 ## Phase 5: PR 作成
 
-Issue 番号を渡してサブエージェントを起動する。サブエージェントは `agents/pr-creation.md` を読み込み、コミット・プッシュ・PR 作成を自律実行する。PR URL を受け取って表示する。
+Issue 番号を渡して Sonnet モデルのサブエージェント（`model: sonnet`）を起動する。サブエージェントは `agents/pr-creation.md` を読み込み、コミット・プッシュ・PR 作成を自律実行する。構造化された情報の照合・整形タスクのため Sonnet で十分な精度が得られる。PR URL を受け取って表示する。
 
 ---
 
 ## Phase 6: 振り返り
 
-Phase 5 完了後、または Phase 3 中断後に実行する。Issue 番号を渡してサブエージェントを起動する。サブエージェントは `agents/retrospective.md` を読み込み、`.output/` 内のファイルを自己取得して知見の収集・原因分析・改善提案を行う。
+Phase 5 完了後、または Phase 3 中断後に実行する。Issue 番号を渡して Sonnet モデルのサブエージェント（`model: sonnet`）を起動する。サブエージェントは `agents/retrospective.md` を読み込み、`.output/` 内のファイルを自己取得して知見の収集・原因分析・改善提案を行う。入力が bounded（構造化済みファイル群）のため Sonnet で十分な精度が得られる。
 
 メインエージェントはサブエージェントから受け取った改善提案をユーザーに提示し、承認された改善を実行するか改善 Issue を作成する。
 

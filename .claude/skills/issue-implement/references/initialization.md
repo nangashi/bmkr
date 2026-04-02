@@ -13,7 +13,12 @@ Issue・計画の読み込みとブランチ準備を行う。
   ```
   worktree 上であれば、`claude -w` で作成済みのブランチをそのまま使用して続行する。
 - `gh auth status` で GitHub CLI の利用可否を確認
-- `which codex` で codex CLI の利用可否を確認（なければ Phase 1 の設計レビューで Codex の代わりに Opus にフォールバック）
+- `which codex` で codex CLI の利用可否を確認。なければ以下を表示して終了する:
+  ```
+  codex CLI が見つかりません。
+  このスキルは codex CLI（設計レビュー・品質ゲートレビュー）を必須とします。
+  codex CLI をインストールしてから再実行してください。
+  ```
 
 ## 0b. 開発準備
 
