@@ -8,7 +8,7 @@ last-validated: 2026-03-22
 
 ## Context and Problem Statement
 
-3つの Go バックエンドサービス（ec-site, product-mgmt, customer-mgmt）は現在 `log.Printf` / `log.Fatalf` のみでログ出力しており、構造化ログに対応していない。ログ設計ガイド（docs/guides/implementation/logging-strategy.md）で JSON 構造化ログと canonical log line パターンが策定済みだが、それを実現するライブラリが未選定である。この ADR では Go バックエンドサービスのログライブラリを選定する。BFF（Fastify）のログ基盤、OpenTelemetry/分散トレーシングの導入判断はスコープ外とする。
+3つの Go バックエンドサービス（ec-site, product-mgmt, customer-mgmt）は現在 `log.Printf` / `log.Fatalf` のみでログ出力しており、構造化ログに対応していない。ログ設計ガイド（docs/guides/go-logging.md）で JSON 構造化ログと canonical log line パターンが策定済みだが、それを実現するライブラリが未選定である。この ADR では Go バックエンドサービスのログライブラリを選定する。BFF（Fastify）のログ基盤、OpenTelemetry/分散トレーシングの導入判断はスコープ外とする。
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ last-validated: 2026-03-22
 * サービス間通信に Connect RPC を採用している (ADR-0003)
 * Go 1.21+ の log/slog が標準ライブラリとして利用可能
 * 現状は標準 log パッケージの Printf / Fatalf のみ使用（3サービス共通）
-* ログ設計ガイド (docs/guides/implementation/logging-strategy.md) が策定済み — JSON 出力、canonical log line、フィールド規約が定義されている
+* ログ設計ガイド (docs/guides/go-logging.md) が策定済み — JSON 出力、canonical log line、フィールド規約が定義されている
 * 学習プロジェクトのため外部依存は最小限が望ましい
 * 3サービスで同一のライブラリを使う（統一性）
 * 将来の OpenTelemetry 統合を妨げない選択であること

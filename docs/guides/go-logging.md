@@ -1,5 +1,5 @@
 ---
-id: logging-strategy
+id: go-logging
 category: observability
 scope: [backend]
 severity: high

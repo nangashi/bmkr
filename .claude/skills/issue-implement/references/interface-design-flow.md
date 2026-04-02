@@ -45,7 +45,7 @@ func (h *CartServiceHandler) GetCart(...) {
 
 ## ガイド読み込み
 
-`docs/guides/workflow/` 配下で関連するガイドを読む。
+`docs/guides/codegen-workflow.md` を読む。
 
 ---
 

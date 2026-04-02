@@ -4,7 +4,7 @@
 
 ## 参照資料の読み込み（必須）
 
-1. `docs/guides/workflow/` 配下で関連するガイドを Read で読む
+1. `docs/guides/codegen-workflow.md` を Read で読む
 2. 変更対象ファイルの周辺にある既存ファイルを Read して、プロジェクト固有のパターンを把握する
 
 ## 自動生成コードの前提作業

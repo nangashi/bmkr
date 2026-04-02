@@ -10,7 +10,7 @@ Report Directory 内のレポートを一次情報として参照する。
 
 ## 参照資料の読み込み（必須）
 
-- `docs/guides/implementation/` 配下のガイドを Read で読む
+- `docs/guides/` 配下のガイドを Read で読む（特に `go-logging.md` と `implementation-anti-patterns.md`）
 - 変更対象ファイルの周辺にある既存ファイルを Read してパターンを把握する
 - オシレーション回避指示がある場合: `{report:oscillation-directives.md}` を Read し、記載された directive に従う
 - goal_check からの差し戻しの場合: `{report:goal-check.md}` を Read し、未対応の受け入れ条件を確認する
