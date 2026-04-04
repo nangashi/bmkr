@@ -14,28 +14,24 @@ func TestPgTimestampToProto(t *testing.T) {
 	fixedTime := time.Date(2024, 6, 15, 12, 30, 0, 0, time.UTC)
 
 	tests := []struct {
-		name    string
-		input   pgtype.Timestamptz
-		wantNil bool
-		wantTs  *timestamppb.Timestamp
+		name   string
+		input  pgtype.Timestamptz
+		wantTs *timestamppb.Timestamp
 	}{
 		{
-			name:    "Valid=true returns non-nil timestamppb.Timestamp with correct time",
-			input:   pgtype.Timestamptz{Time: fixedTime, Valid: true},
-			wantNil: false,
-			wantTs:  timestamppb.New(fixedTime),
+			name:   "Valid=true returns non-nil timestamppb.Timestamp with correct time",
+			input:  pgtype.Timestamptz{Time: fixedTime, Valid: true},
+			wantTs: timestamppb.New(fixedTime),
 		},
 		{
-			name:    "Valid=false (NULL) returns nil",
-			input:   pgtype.Timestamptz{Valid: false},
-			wantNil: true,
-			wantTs:  nil,
+			name:   "Valid=false (NULL) returns nil",
+			input:  pgtype.Timestamptz{Valid: false},
+			wantTs: nil,
 		},
 		{
-			name:    "zero value (Valid=false) returns nil",
-			input:   pgtype.Timestamptz{},
-			wantNil: true,
-			wantTs:  nil,
+			name:   "zero value (Valid=false) returns nil",
+			input:  pgtype.Timestamptz{},
+			wantTs: nil,
 		},
 	}
 
@@ -43,7 +39,7 @@ func TestPgTimestampToProto(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := pgutil.PgTimestampToProto(tt.input)
 
-			if tt.wantNil {
+			if tt.wantTs == nil {
 				if got != nil {
 					t.Errorf("PgTimestampToProto(%v) = %v, want nil", tt.input, got)
 				}
