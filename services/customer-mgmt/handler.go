@@ -8,11 +8,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	customerv1 "github.com/nangashi/bmkr/gen/go/customer/v1"
+	"github.com/nangashi/bmkr/lib/go/pgutil"
 	db "github.com/nangashi/bmkr/services/customer-mgmt/db/generated"
 )
 
@@ -90,14 +89,7 @@ func dbCustomerToProto(c db.Customer) *customerv1.Customer {
 		Id:        c.ID,
 		Name:      c.Name,
 		Email:     c.Email,
-		CreatedAt: pgTimestampToProto(c.CreatedAt),
-		UpdatedAt: pgTimestampToProto(c.UpdatedAt),
+		CreatedAt: pgutil.PgTimestampToProto(c.CreatedAt),
+		UpdatedAt: pgutil.PgTimestampToProto(c.UpdatedAt),
 	}
-}
-
-func pgTimestampToProto(ts pgtype.Timestamptz) *timestamppb.Timestamp {
-	if !ts.Valid {
-		return nil
-	}
-	return timestamppb.New(ts.Time)
 }

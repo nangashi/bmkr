@@ -2,13 +2,14 @@ module github.com/nangashi/bmkr/services/customer-mgmt
 
 go 1.26.1
 
-replace github.com/nangashi/bmkr/gen/go => ../../gen/go
+replace github.com/nangashi/bmkr/lib/go => ../../lib/go
 
 require (
 	connectrpc.com/connect v1.19.1
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/nangashi/bmkr/gen/go v0.0.0-00010101000000-000000000000
+	github.com/nangashi/bmkr/lib/go v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.49.0
 	golang.org/x/net v0.52.0
 	google.golang.org/protobuf v1.36.11
