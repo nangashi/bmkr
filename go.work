@@ -1,0 +1,9 @@
+go 1.26.1
+
+use (
+	./gen/go
+	./lib/go
+	./services/customer-mgmt
+	./services/ec-site
+	./services/product-mgmt
+)

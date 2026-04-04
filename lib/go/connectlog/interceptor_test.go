@@ -1,4 +1,4 @@
-package main
+package connectlog_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	ecv1 "github.com/nangashi/bmkr/gen/go/ec/v1"
 	"github.com/nangashi/bmkr/gen/go/ec/v1/ecv1connect"
+	"github.com/nangashi/bmkr/lib/go/connectlog"
 )
 
 // ---------------------------------------------------------------------------
@@ -28,7 +29,55 @@ func (h *testCartServiceHandler) GetCart(ctx context.Context, req *connect.Reque
 }
 
 // ---------------------------------------------------------------------------
-// Tests: newLoggingInterceptor の canonical log line 出力
+// Helpers: slog capture
+// ---------------------------------------------------------------------------
+
+// logRecord はキャプチャしたログレコードを保持する。
+type logRecord struct {
+	Level   slog.Level
+	Message string
+	Attrs   map[string]any
+}
+
+// captureSlog は slog.SetDefault でカスタムハンドラを設定し、
+// ログ出力をキャプチャするヘルパー。テスト終了後に元のデフォルトに復元する。
+func captureSlog(t *testing.T) *[]logRecord {
+	t.Helper()
+	original := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(original) })
+
+	var records []logRecord
+	handler := &captureHandler{records: &records}
+	slog.SetDefault(slog.New(handler))
+	return &records
+}
+
+// captureHandler は slog.Handler のテスト用実装。
+type captureHandler struct {
+	records *[]logRecord
+}
+
+func (h *captureHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+func (h *captureHandler) Handle(_ context.Context, r slog.Record) error {
+	rec := logRecord{
+		Level:   r.Level,
+		Message: r.Message,
+		Attrs:   make(map[string]any),
+	}
+	r.Attrs(func(a slog.Attr) bool {
+		rec.Attrs[a.Key] = a.Value.Any()
+		return true
+	})
+	*h.records = append(*h.records, rec)
+	return nil
+}
+
+func (h *captureHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *captureHandler) WithGroup(_ string) slog.Handler      { return h }
+
+// ---------------------------------------------------------------------------
+// Tests: connectlog.NewLoggingInterceptor の canonical log line 出力
 // ---------------------------------------------------------------------------
 
 func TestNewLoggingInterceptor(t *testing.T) {
@@ -65,7 +114,7 @@ func TestNewLoggingInterceptor(t *testing.T) {
 
 			_, handler := ecv1connect.NewCartServiceHandler(
 				&testCartServiceHandler{getCartFn: tt.getCartFn},
-				connect.WithInterceptors(newLoggingInterceptor()),
+				connect.WithInterceptors(connectlog.NewLoggingInterceptor()),
 			)
 
 			server := httptest.NewServer(handler)
@@ -108,7 +157,7 @@ func TestNewLoggingInterceptor(t *testing.T) {
 				t.Errorf("status = %v, want %q", rec.Attrs["status"], tt.wantStatus)
 			}
 
-			// request_id = リクエストヘッダの X-Request-Id
+			// request_id = リクエストヘッダの X-Request-Id (string literal, not echo constant)
 			if rec.Attrs["request_id"] != tt.requestID {
 				t.Errorf("request_id = %v, want %q", rec.Attrs["request_id"], tt.requestID)
 			}

@@ -9,12 +9,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ecv1 "github.com/nangashi/bmkr/gen/go/ec/v1"
 	productv1 "github.com/nangashi/bmkr/gen/go/product/v1"
 	"github.com/nangashi/bmkr/gen/go/product/v1/productv1connect"
+	"github.com/nangashi/bmkr/lib/go/pgutil"
 	db "github.com/nangashi/bmkr/services/ec-site/db/generated"
 )
 
@@ -233,8 +232,8 @@ func dbCartToProto(c db.Cart, items []db.CartItem) *ecv1.Cart {
 		Id:         c.ID,
 		CustomerId: c.CustomerID,
 		Items:      protoItems,
-		CreatedAt:  pgTimestampToProto(c.CreatedAt),
-		UpdatedAt:  pgTimestampToProto(c.UpdatedAt),
+		CreatedAt:  pgutil.PgTimestampToProto(c.CreatedAt),
+		UpdatedAt:  pgutil.PgTimestampToProto(c.UpdatedAt),
 	}
 }
 
@@ -243,15 +242,8 @@ func dbCartItemToProto(item db.CartItem) *ecv1.CartItem {
 		Id:        item.ID,
 		ProductId: item.ProductID,
 		Quantity:  item.Quantity,
-		CreatedAt: pgTimestampToProto(item.CreatedAt),
+		CreatedAt: pgutil.PgTimestampToProto(item.CreatedAt),
 	}
-}
-
-func pgTimestampToProto(ts pgtype.Timestamptz) *timestamppb.Timestamp {
-	if !ts.Valid {
-		return nil
-	}
-	return timestamppb.New(ts.Time)
 }
 
 func newProductServiceClient(baseURL string) productv1connect.ProductServiceClient {

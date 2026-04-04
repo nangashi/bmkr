@@ -7,10 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	productv1 "github.com/nangashi/bmkr/gen/go/product/v1"
+	"github.com/nangashi/bmkr/lib/go/pgutil"
 	db "github.com/nangashi/bmkr/services/product-mgmt/db/generated"
 )
 
@@ -166,14 +165,7 @@ func dbProductToProto(p db.Product) *productv1.Product {
 		Description:   p.Description,
 		Price:         p.Price,
 		StockQuantity: int64(p.StockQuantity),
-		CreatedAt:     pgTimestampToProto(p.CreatedAt),
-		UpdatedAt:     pgTimestampToProto(p.UpdatedAt),
+		CreatedAt:     pgutil.PgTimestampToProto(p.CreatedAt),
+		UpdatedAt:     pgutil.PgTimestampToProto(p.UpdatedAt),
 	}
-}
-
-func pgTimestampToProto(ts pgtype.Timestamptz) *timestamppb.Timestamp {
-	if !ts.Valid {
-		return nil
-	}
-	return timestamppb.New(ts.Time)
 }
