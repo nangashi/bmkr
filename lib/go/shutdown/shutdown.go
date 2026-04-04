@@ -2,7 +2,16 @@
 // waits for OS signals and coordinates teardown.
 package shutdown
 
-import "net/http"
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)
 
 // GracefulShutdown blocks until the server exits gracefully or a fatal
 // condition is encountered.
@@ -17,19 +26,35 @@ import "net/http"
 //	}()
 //	shutdown.GracefulShutdown(server, serveErr, pool.Close)
 //
-// wip: use signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-// and select on serveErr and ctx.Done().
-// On non-ErrServerClosed serveErr: log error, call cleanup, os.Exit(1).
-// On ctx.Done(): proceed to graceful shutdown.
-// Create a 10-second shutdown context, call server.Shutdown.
-// On timeout: log, call server.Close, call cleanup, os.Exit(1).
-// On clean shutdown: log "server stopped", call cleanup.
-//
 // Parameters:
 //   - server:   the running *http.Server.
 //   - serveErr: buffered channel (cap >= 1) that receives the error from
 //     server.ListenAndServe.
 //   - cleanup:  called exactly once before return or os.Exit; must not be nil.
 func GracefulShutdown(server *http.Server, serveErr <-chan error, cleanup func()) {
-	panic("not implemented")
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case err := <-serveErr:
+		if !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("failed to start server", "error", err)
+			cleanup()
+			os.Exit(1)
+		}
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	slog.Info("shutting down server")
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("graceful shutdown timed out, forcing close", "error", err)
+		_ = server.Close()
+		cleanup()
+		os.Exit(1)
+	}
+	cleanup()
+	slog.Info("server stopped")
 }

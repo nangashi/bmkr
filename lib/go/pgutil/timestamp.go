@@ -8,10 +8,11 @@ import (
 )
 
 // PgTimestampToProto converts a pgtype.Timestamptz to a *timestamppb.Timestamp.
-//
-// wip: check ts.Valid; return nil when false (NULL column value).
-// Otherwise return timestamppb.New(ts.Time).
-// Pure function — no side effects, safe for concurrent use.
+// Returns nil when ts.Valid is false (NULL column value).
+// This is a pure function with no side effects.
 func PgTimestampToProto(ts pgtype.Timestamptz) *timestamppb.Timestamp {
-	panic("not implemented")
+	if !ts.Valid {
+		return nil
+	}
+	return timestamppb.New(ts.Time)
 }

@@ -2,17 +2,44 @@
 // request logging per ADR-0016.
 package connectlog
 
-import "connectrpc.com/connect"
+import (
+	"context"
+	"log/slog"
+	"time"
+
+	"connectrpc.com/connect"
+)
 
 // NewLoggingInterceptor returns a Connect unary interceptor that outputs
 // a canonical log line for every unary RPC call.
 //
-// wip: wrap next(ctx, req) with timing, derive status "ok"/"error" from err,
-// then call slog.InfoContext with fields: method=req.Spec().Procedure,
-// status, duration_ms, request_id=req.Header().Get("X-Request-Id").
-// Pass through resp and err unchanged to the caller.
-// Note: use string literal "X-Request-Id" instead of echo.HeaderXRequestID
-// to avoid coupling this package to the Echo framework.
+// Log fields (slog, InfoContext):
+//   - "method":      req.Spec().Procedure  (e.g. "/ec.v1.CartService/GetCart")
+//   - "status":      "ok" | "error"
+//   - "duration_ms": elapsed milliseconds
+//   - "request_id":  X-Request-Id header value (uses string literal, not echo constant)
+//
+// The function is stateless and safe for concurrent use.
+// Note: does NOT depend on the Echo package — uses "X-Request-Id" string literal.
 func NewLoggingInterceptor() connect.UnaryInterceptorFunc {
-	panic("not implemented")
+	return func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			start := time.Now()
+			resp, err := next(ctx, req)
+			duration := time.Since(start)
+
+			status := "ok"
+			if err != nil {
+				status = "error"
+			}
+
+			slog.InfoContext(ctx, "request completed",
+				"method", req.Spec().Procedure,
+				"status", status,
+				"duration_ms", duration.Milliseconds(),
+				"request_id", req.Header().Get("X-Request-Id"),
+			)
+			return resp, err
+		}
+	}
 }

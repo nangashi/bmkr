@@ -2,7 +2,13 @@
 // across all bmkr Go services.
 package echomw
 
-import "github.com/labstack/echo/v4"
+import (
+	"log/slog"
+	"strings"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+)
 
 // SetupMiddleware registers the canonical middleware stack onto e.
 //
@@ -16,12 +22,36 @@ import "github.com/labstack/echo/v4"
 //     Skipper: paths containing "." are skipped (those are Connect RPC
 //     routes logged by the Connect interceptor instead, per ADR-0016).
 //
-// wip: use middleware.RequestIDWithConfig with RequestIDHandler that calls
-// c.Request().Header.Set(echo.HeaderXRequestID, requestID).
-// Use middleware.RequestLoggerWithConfig with LogStatus, LogURI, LogMethod,
-// LogLatency, LogRequestID all true. In LogValuesFunc derive status
-// "ok"/"error" from v.Status>=400 and call slog.InfoContext with the
-// canonical fields. Set Skipper to return strings.Contains(c.Path(), ".").
+// SetupMiddleware does not return an error; Echo middleware registration
+// is always successful.
 func SetupMiddleware(e *echo.Echo) {
-	panic("not implemented")
+	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
+		RequestIDHandler: func(c echo.Context, requestID string) {
+			c.Request().Header.Set(echo.HeaderXRequestID, requestID)
+		},
+	}))
+
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus:    true,
+		LogURI:       true,
+		LogMethod:    true,
+		LogLatency:   true,
+		LogRequestID: true,
+		Skipper: func(c echo.Context) bool {
+			return strings.Contains(c.Path(), ".")
+		},
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			status := "ok"
+			if v.Status >= 400 {
+				status = "error"
+			}
+			slog.InfoContext(c.Request().Context(), "request completed",
+				"method", v.Method+" "+v.URI,
+				"status", status,
+				"duration_ms", v.Latency.Milliseconds(),
+				"request_id", v.RequestID,
+			)
+			return nil
+		},
+	}))
 }
