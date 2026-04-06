@@ -165,25 +165,65 @@ func (h *ProductServiceHandler) BatchGetProducts(
 
 // AllocateStock handles the AllocateStock RPC.
 //
-// wip: 動作:
-// wip:   - items のバリデーション（1件以上、各 product_id > 0、各 quantity >= 1）
-// wip:   - pool.BeginTx でトランザクションを開始する
-// wip:   - 各 item に対して db.AllocateStock（UPDATE stock_quantity - quantity WHERE id = $1 AND stock_quantity >= quantity）を実行
-// wip:   - AllocateStock の返り値が 0 の場合、在庫不足として tx.Rollback し RESOURCE_EXHAUSTED を返す
-// wip:   - 全件成功した場合 tx.Commit する
-// wip:   - DB エラー時は tx.Rollback し INTERNAL を返す
-// wip:
-// wip: エラー:
-// wip:   - items が空 → INVALID_ARGUMENT
-// wip:   - product_id <= 0 or quantity < 1 → INVALID_ARGUMENT
-// wip:   - 在庫不足（AllocateStock rows == 0）→ RESOURCE_EXHAUSTED、全件ロールバック
-// wip:   - product_id が存在しない → stock_quantity >= quantity が常に偽となり rows == 0 → RESOURCE_EXHAUSTED として扱う
-// wip:   - DB エラー → INTERNAL（ログ出力）
+// 動作:
+//   - items のバリデーション（1件以上、各 product_id > 0、各 quantity >= 1）
+//   - pool.BeginTx でトランザクションを開始する
+//   - 各 item に対して db.AllocateStock（UPDATE stock_quantity - quantity WHERE id = $1 AND stock_quantity >= quantity）を実行
+//   - AllocateStock の返り値が 0 の場合、在庫不足として tx.Rollback し RESOURCE_EXHAUSTED を返す
+//   - 全件成功した場合 tx.Commit する
+//   - DB エラー時は tx.Rollback し INTERNAL を返す
+//
+// エラー:
+//   - items が空 → INVALID_ARGUMENT
+//   - product_id <= 0 or quantity < 1 → INVALID_ARGUMENT
+//   - 在庫不足（AllocateStock rows == 0）→ RESOURCE_EXHAUSTED、全件ロールバック
+//   - product_id が存在しない → stock_quantity >= quantity が常に偽となり rows == 0 → RESOURCE_EXHAUSTED として扱う
+//   - DB エラー → INTERNAL（ログ出力）
 func (h *ProductServiceHandler) AllocateStock(
 	ctx context.Context,
 	req *connect.Request[productv1.AllocateStockRequest],
 ) (*connect.Response[productv1.AllocateStockResponse], error) {
-	panic("not implemented")
+	items := req.Msg.GetItems()
+	if len(items) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("items must not be empty"))
+	}
+	for _, item := range items {
+		if item.GetProductId() <= 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("product_id must be positive"))
+		}
+		if item.GetQuantity() < 1 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("quantity must be at least 1"))
+		}
+	}
+
+	tx, err := h.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err, "method", "AllocateStock")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // commit 後の Rollback は無害
+
+	txQueries := db.New(tx)
+	for _, item := range items {
+		rows, err := txQueries.AllocateStock(ctx, db.AllocateStockParams{
+			ID:            item.GetProductId(),
+			StockQuantity: item.GetQuantity(),
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "database error", "error", err, "method", "AllocateStock")
+			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+		}
+		if rows == 0 {
+			return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("insufficient stock"))
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit transaction", "error", err, "method", "AllocateStock")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	return connect.NewResponse(&productv1.AllocateStockResponse{}), nil
 }
 
 func dbProductToProto(p db.Product) *productv1.Product {

@@ -64,7 +64,7 @@ func main() {
 	e.Any(cartPath+"*", echo.WrapHandler(cartHandler))
 
 	orderPath, orderHandler := ecv1connect.NewOrderServiceHandler(
-		&OrderServiceHandler{q: queries, productClient: productClient},
+		&OrderServiceHandler{q: queries, productClient: productClient, pool: pool},
 		connect.WithInterceptors(connectlog.NewLoggingInterceptor()),
 	)
 	e.Any(orderPath+"*", echo.WrapHandler(orderHandler))
