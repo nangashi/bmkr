@@ -675,3 +675,44 @@ func TestBatchGetProducts_DBError_HidesRawMessage(t *testing.T) {
 		t.Errorf("error message should not contain raw DB error, got %q", connectErr.Message())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Tests — GetProduct RPC: バリデーション
+// ---------------------------------------------------------------------------
+
+func TestGetProduct_Validation(t *testing.T) {
+	tests := []struct {
+		name string
+		id   int64
+	}{
+		{name: "id が 0", id: 0},
+		{name: "id が負数", id: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockListProductStore{
+				GetProductFn: func(_ context.Context, _ int64) (db.Product, error) {
+					t.Fatal("store.GetProduct should not be called on validation error")
+					return db.Product{}, nil
+				},
+			}
+			h := &ProductServiceHandler{store: store}
+
+			_, err := h.GetProduct(
+				context.Background(),
+				connect.NewRequest(&productv1.GetProductRequest{Id: tt.id}),
+			)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var connectErr *connect.Error
+			if !errors.As(err, &connectErr) {
+				t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+			}
+			if connectErr.Code() != connect.CodeInvalidArgument {
+				t.Errorf("error code = %v, want %v", connectErr.Code(), connect.CodeInvalidArgument)
+			}
+		})
+	}
+}

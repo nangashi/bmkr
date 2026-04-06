@@ -265,3 +265,44 @@ func TestCreateCustomer_HashErrorTooLong_ReturnsGenericMessage(t *testing.T) {
 		t.Errorf("error message should not expose bcrypt internal error, got %q", connectErr.Message())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Tests — GetCustomer RPC: バリデーション
+// ---------------------------------------------------------------------------
+
+func TestGetCustomer_Validation(t *testing.T) {
+	tests := []struct {
+		name string
+		id   int64
+	}{
+		{name: "id が 0", id: 0},
+		{name: "id が負数", id: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockCustomerStore{
+				GetCustomerFn: func(_ context.Context, _ int64) (db.Customer, error) {
+					t.Fatal("store.GetCustomer should not be called on validation error")
+					return db.Customer{}, nil
+				},
+			}
+			h := &CustomerServiceHandler{store: store}
+
+			_, err := h.GetCustomer(
+				context.Background(),
+				connect.NewRequest(&customerv1.GetCustomerRequest{Id: tt.id}),
+			)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var connectErr *connect.Error
+			if !errors.As(err, &connectErr) {
+				t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+			}
+			if connectErr.Code() != connect.CodeInvalidArgument {
+				t.Errorf("error code = %v, want %v", connectErr.Code(), connect.CodeInvalidArgument)
+			}
+		})
+	}
+}

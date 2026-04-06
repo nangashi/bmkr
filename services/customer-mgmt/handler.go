@@ -70,6 +70,9 @@ func (h *CustomerServiceHandler) GetCustomer(
 	ctx context.Context,
 	req *connect.Request[customerv1.GetCustomerRequest],
 ) (*connect.Response[customerv1.GetCustomerResponse], error) {
+	if req.Msg.Id <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
 	customer, err := h.store.GetCustomer(ctx, req.Msg.Id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

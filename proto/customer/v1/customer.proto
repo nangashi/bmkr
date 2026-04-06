@@ -33,6 +33,34 @@ message GetCustomerResponse {
 }
 
 service CustomerService {
+  // CreateCustomer creates a new customer.
+  //
+  // Pre:
+  //   - name must be non-empty
+  //   - email must be non-empty and a valid email format
+  //   - password must be 72 bytes or fewer
+  //
+  // Post:
+  //   - customer is created in the DB and returned with an assigned id
+  //   - password is not included in the response
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — name is empty
+  //   INVALID_ARGUMENT — email is empty or invalid format
+  //   INVALID_ARGUMENT — password exceeds 72 bytes
+  //
+  // Defers:
+  //   email の重複チェックは明示的に行わない（DB UNIQUE 制約違反は CodeInternal として扱われる）
+  //   パスワード強度チェックは行わない
   rpc CreateCustomer(CreateCustomerRequest) returns (CreateCustomerResponse);
+
+  // GetCustomer returns the customer with the given id.
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — id is 0 or negative
+  //   NOT_FOUND        — no customer with the given id exists
+  //
+  // Defers:
+  //   パスワードハッシュはレスポンスに含まれない
   rpc GetCustomer(GetCustomerRequest) returns (GetCustomerResponse);
 }
