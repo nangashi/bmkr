@@ -155,8 +155,7 @@ func (h *OrderServiceHandler) PlaceOrder(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
-	orderItems := make([]*ecv1.OrderItem, len(txCartItems))
-	for i, item := range txCartItems {
+	for _, item := range txCartItems {
 		p := productMap[item.ProductID]
 		if err := txq.CreateOrderItem(ctx, db.CreateOrderItemParams{
 			OrderID:     order.ID,
@@ -167,12 +166,6 @@ func (h *OrderServiceHandler) PlaceOrder(
 		}); err != nil {
 			slog.ErrorContext(ctx, "database error", "error", err, "method", "PlaceOrder.CreateOrderItem")
 			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
-		}
-		orderItems[i] = &ecv1.OrderItem{
-			ProductId:   item.ProductID,
-			ProductName: p.Name,
-			Price:       p.Price,
-			Quantity:    item.Quantity,
 		}
 	}
 
@@ -186,15 +179,15 @@ func (h *OrderServiceHandler) PlaceOrder(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 	}
 
+	// コミット後にアイテムを再取得して正確な ID を含むレスポンスを構築する
+	savedItems, err := h.q.ListOrderItemsByOrderID(ctx, order.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err, "method", "PlaceOrder.ListOrderItemsByOrderID")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
 	return connect.NewResponse(&ecv1.PlaceOrderResponse{
-		Order: &ecv1.Order{
-			Id:          order.ID,
-			CustomerId:  order.CustomerID,
-			TotalAmount: order.TotalAmount,
-			Status:      order.Status,
-			CreatedAt:   pgutil.PgTimestampToProto(order.CreatedAt),
-			Items:       orderItems,
-		},
+		Order: dbOrderToProto(order, savedItems),
 	}), nil
 }
 

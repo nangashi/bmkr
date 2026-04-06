@@ -164,21 +164,7 @@ func (h *ProductServiceHandler) BatchGetProducts(
 }
 
 // AllocateStock handles the AllocateStock RPC.
-//
-// 動作:
-//   - items のバリデーション（1件以上、各 product_id > 0、各 quantity >= 1）
-//   - pool.BeginTx でトランザクションを開始する
-//   - 各 item に対して db.AllocateStock（UPDATE stock_quantity - quantity WHERE id = $1 AND stock_quantity >= quantity）を実行
-//   - AllocateStock の返り値が 0 の場合、在庫不足として tx.Rollback し RESOURCE_EXHAUSTED を返す
-//   - 全件成功した場合 tx.Commit する
-//   - DB エラー時は tx.Rollback し INTERNAL を返す
-//
-// エラー:
-//   - items が空 → INVALID_ARGUMENT
-//   - product_id <= 0 or quantity < 1 → INVALID_ARGUMENT
-//   - 在庫不足（AllocateStock rows == 0）→ RESOURCE_EXHAUSTED、全件ロールバック
-//   - product_id が存在しない → stock_quantity >= quantity が常に偽となり rows == 0 → RESOURCE_EXHAUSTED として扱う
-//   - DB エラー → INTERNAL（ログ出力）
+// rows=0 は在庫不足と product_id 不存在の両方をカバーする（区別しない仕様）。
 func (h *ProductServiceHandler) AllocateStock(
 	ctx context.Context,
 	req *connect.Request[productv1.AllocateStockRequest],
