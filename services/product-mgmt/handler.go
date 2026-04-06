@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	productv1 "github.com/nangashi/bmkr/gen/go/product/v1"
 	"github.com/nangashi/bmkr/lib/go/pgutil"
@@ -28,6 +29,7 @@ var _ productStore = (*db.Queries)(nil)
 
 type ProductServiceHandler struct {
 	store productStore
+	pool  *pgxpool.Pool // AllocateStock のトランザクション処理に使用
 }
 
 func (h *ProductServiceHandler) CreateProduct(
@@ -159,6 +161,29 @@ func (h *ProductServiceHandler) BatchGetProducts(
 	return connect.NewResponse(&productv1.BatchGetProductsResponse{
 		Products: protoProducts,
 	}), nil
+}
+
+// AllocateStock handles the AllocateStock RPC.
+//
+// wip: 動作:
+// wip:   - items のバリデーション（1件以上、各 product_id > 0、各 quantity >= 1）
+// wip:   - pool.BeginTx でトランザクションを開始する
+// wip:   - 各 item に対して db.AllocateStock（UPDATE stock_quantity - quantity WHERE id = $1 AND stock_quantity >= quantity）を実行
+// wip:   - AllocateStock の返り値が 0 の場合、在庫不足として tx.Rollback し RESOURCE_EXHAUSTED を返す
+// wip:   - 全件成功した場合 tx.Commit する
+// wip:   - DB エラー時は tx.Rollback し INTERNAL を返す
+// wip:
+// wip: エラー:
+// wip:   - items が空 → INVALID_ARGUMENT
+// wip:   - product_id <= 0 or quantity < 1 → INVALID_ARGUMENT
+// wip:   - 在庫不足（AllocateStock rows == 0）→ RESOURCE_EXHAUSTED、全件ロールバック
+// wip:   - product_id が存在しない → stock_quantity >= quantity が常に偽となり rows == 0 → RESOURCE_EXHAUSTED として扱う
+// wip:   - DB エラー → INTERNAL（ログ出力）
+func (h *ProductServiceHandler) AllocateStock(
+	ctx context.Context,
+	req *connect.Request[productv1.AllocateStockRequest],
+) (*connect.Response[productv1.AllocateStockResponse], error) {
+	panic("not implemented")
 }
 
 func dbProductToProto(p db.Product) *productv1.Product {

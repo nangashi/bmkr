@@ -63,6 +63,12 @@ func main() {
 	)
 	e.Any(cartPath+"*", echo.WrapHandler(cartHandler))
 
+	orderPath, orderHandler := ecv1connect.NewOrderServiceHandler(
+		&OrderServiceHandler{q: queries, productClient: productClient},
+		connect.WithInterceptors(connectlog.NewLoggingInterceptor()),
+	)
+	e.Any(orderPath+"*", echo.WrapHandler(orderHandler))
+
 	server := &http.Server{
 		Addr:         ":" + port,
 		Handler:      h2c.NewHandler(e, &http2.Server{}),

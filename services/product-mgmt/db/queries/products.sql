@@ -26,3 +26,8 @@ LIMIT $1 OFFSET $2;
 SELECT id, name, description, price, stock_quantity, created_at, updated_at
 FROM products
 WHERE id = ANY($1::bigint[]);
+
+-- name: AllocateStock :execrows
+UPDATE products
+SET stock_quantity = stock_quantity - $2
+WHERE id = $1 AND stock_quantity >= $2;

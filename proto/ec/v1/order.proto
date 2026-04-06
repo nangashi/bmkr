@@ -2,6 +2,107 @@ syntax = "proto3";
 
 package ec.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/nangashi/bmkr/gen/go/ec/v1;ecv1";
 
-service OrderService {}
+message OrderItem {
+  int64 id = 1;
+  int64 product_id = 2;
+  string product_name = 3;
+  int64 price = 4;
+  int32 quantity = 5;
+}
+
+message Order {
+  int64 id = 1;
+  int64 customer_id = 2;
+  int64 total_amount = 3;
+  string status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  repeated OrderItem items = 6;
+}
+
+message PlaceOrderRequest {
+  int64 customer_id = 1;
+}
+
+message PlaceOrderResponse {
+  Order order = 1;
+}
+
+message ListOrdersRequest {
+  int64 customer_id = 1;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+}
+
+message GetOrderRequest {
+  int64 customer_id = 1;
+  int64 order_id = 2;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+service OrderService {
+  // PlaceOrder creates an order from the customer's cart.
+  //
+  // Pre:
+  //   - customer_id must be a positive integer
+  //   - cart for customer_id must have at least one item
+  //   - all items must have sufficient stock (checked via ProductService.AllocateStock)
+  //
+  // Post:
+  //   - order is created with status "placed"
+  //   - stock is decremented for each item via AllocateStock
+  //   - cart items are cleared (ClearCartItems)
+  //   - response contains the created order with all items
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT    — customer_id is 0 or negative
+  //   FAILED_PRECONDITION — cart is empty or cart does not exist
+  //   RESOURCE_EXHAUSTED  — one or more items have insufficient stock
+  //
+  // Defers:
+  //   決済処理は行わない（将来の PaymentService に委譲予定）
+  //   在庫の部分的な確保は行わない（全件成功 or 全件ロールバック）
+  rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
+
+  // ListOrders returns a summary list of orders for the given customer.
+  //
+  // Pre:
+  //   - customer_id must be a positive integer
+  //
+  // Post:
+  //   - returns orders sorted by created_at DESC
+  //   - response orders do NOT include items (summary only)
+  //   - if no orders exist, returns an empty list (not an error)
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — customer_id is 0 or negative
+  //
+  // Defers:
+  //   ページネーションは実装しない（学習用実装のため全件取得）
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+
+  // GetOrder returns an order with full item details for the given customer.
+  //
+  // Pre:
+  //   - customer_id must be a positive integer
+  //   - order_id must be a positive integer
+  //
+  // Post:
+  //   - response contains the order with all items
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — customer_id is 0 or negative, or order_id is 0 or negative
+  //   NOT_FOUND        — order_id does not exist, or the order belongs to a different customer_id
+  //
+  // Defers:
+  //   注文キャンセル・変更は行わない
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+}
