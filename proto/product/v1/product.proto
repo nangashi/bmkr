@@ -49,6 +49,17 @@ message BatchGetProductsResponse {
   repeated Product products = 1;
 }
 
+message StockAllocationItem {
+  int64 product_id = 1;
+  int32 quantity = 2;
+}
+
+message AllocateStockRequest {
+  repeated StockAllocationItem items = 1;
+}
+
+message AllocateStockResponse {}
+
 service ProductService {
   // CreateProduct creates a new product.
   //
@@ -105,4 +116,24 @@ service ProductService {
   rpc BatchGetProducts(BatchGetProductsRequest) returns (BatchGetProductsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // AllocateStock decrements stock for each item atomically.
+  //
+  // Pre:
+  //   - items must contain at least one element
+  //   - each product_id must be a positive integer
+  //   - each quantity must be >= 1
+  //
+  // Post:
+  //   - stock_quantity is decremented by the specified quantity for each product
+  //   - all decrements succeed or none do (transactional)
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT   — items is empty, a product_id is non-positive, or a quantity is < 1
+  //   RESOURCE_EXHAUSTED — one or more products have insufficient stock or product_id does not exist;
+  //                        both cases result in rows=0 and are treated identically; all decrements are rolled back
+  //
+  // Defers:
+  //   在庫の予約（仮押さえ）は行わない（単純な即時デクリメント）
+  rpc AllocateStock(AllocateStockRequest) returns (AllocateStockResponse);
 }

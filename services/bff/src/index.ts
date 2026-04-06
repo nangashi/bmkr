@@ -15,6 +15,12 @@ import {
   RemoveItemResponseSchema,
   UpdateQuantityResponseSchema,
 } from "../gen/ec/v1/cart_pb.js";
+import {
+  OrderService,
+  PlaceOrderResponseSchema,
+  ListOrdersResponseSchema,
+  GetOrderResponseSchema,
+} from "../gen/ec/v1/order_pb.js";
 
 const port = Number(process.env.PORT) || 3000;
 const productServiceURL = process.env.PRODUCT_SERVICE_URL || "http://localhost:8081";
@@ -31,6 +37,7 @@ const ecSiteTransport = createConnectTransport({
   httpVersion: "2",
 });
 const cartClient = createClient(CartService, ecSiteTransport);
+const orderClient = createClient(OrderService, ecSiteTransport);
 
 const app = Fastify({ logger: true });
 
@@ -174,6 +181,47 @@ app.post("/ec.v1.CartService/UpdateQuantity", async (req, reply) => {
   const resp = await cartClient.updateQuantity({ customerId, itemId, quantity });
   reply.header("Content-Type", "application/json");
   return toJson(UpdateQuantityResponseSchema, resp);
+});
+
+// Connect RPC proxy: PlaceOrder
+// リクエストボディの customer_id を OrderService.PlaceOrder に転送する
+//   - customer_id が未指定の場合、デフォルト 0n が使われ、バックエンドで INVALID_ARGUMENT が返る
+//   - カートが空の場合、バックエンドで FAILED_PRECONDITION が返る
+//   - 在庫不足の場合、バックエンドで RESOURCE_EXHAUSTED が返る
+//   - ec-site サービスへの接続エラーは Fastify のデフォルトエラーハンドリングに任せる
+app.post("/ec.v1.OrderService/PlaceOrder", async (req, reply) => {
+  const body = req.body as { customerId?: string | number };
+  const customerId = BigInt(body.customerId ?? 0);
+  const resp = await orderClient.placeOrder({ customerId });
+  reply.header("Content-Type", "application/json");
+  return toJson(PlaceOrderResponseSchema, resp);
+});
+
+// Connect RPC proxy: ListOrders
+// リクエストボディの customer_id を OrderService.ListOrders に転送する
+//   - customer_id が未指定の場合、デフォルト 0n が使われ、バックエンドで INVALID_ARGUMENT が返る
+//   - 注文が0件の場合、空の orders 配列を持つレスポンスを返す（エラーにしない）
+//   - ec-site サービスへの接続エラーは Fastify のデフォルトエラーハンドリングに任せる
+app.post("/ec.v1.OrderService/ListOrders", async (req, reply) => {
+  const body = req.body as { customerId?: string | number };
+  const customerId = BigInt(body.customerId ?? 0);
+  const resp = await orderClient.listOrders({ customerId });
+  reply.header("Content-Type", "application/json");
+  return toJson(ListOrdersResponseSchema, resp);
+});
+
+// Connect RPC proxy: GetOrder
+// リクエストボディの customer_id, order_id を OrderService.GetOrder に転送する
+//   - customer_id / order_id が未指定の場合、デフォルト 0n が使われ、バックエンドで INVALID_ARGUMENT が返る
+//   - 注文が見つからない場合、バックエンドで NOT_FOUND が返る
+//   - ec-site サービスへの接続エラーは Fastify のデフォルトエラーハンドリングに任せる
+app.post("/ec.v1.OrderService/GetOrder", async (req, reply) => {
+  const body = req.body as { customerId?: string | number; orderId?: string | number };
+  const customerId = BigInt(body.customerId ?? 0);
+  const orderId = BigInt(body.orderId ?? 0);
+  const resp = await orderClient.getOrder({ customerId, orderId });
+  reply.header("Content-Type", "application/json");
+  return toJson(GetOrderResponseSchema, resp);
 });
 
 app.listen({ port, host: "0.0.0.0" }, (err) => {

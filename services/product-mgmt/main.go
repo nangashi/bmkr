@@ -52,7 +52,7 @@ func main() {
 	})
 
 	path, handler := productv1connect.NewProductServiceHandler(
-		&ProductServiceHandler{store: queries},
+		&ProductServiceHandler{store: queries, pool: pool},
 		connect.WithInterceptors(connectlog.NewLoggingInterceptor()),
 	)
 	e.Any(path+"*", echo.WrapHandler(handler))

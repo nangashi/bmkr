@@ -26,3 +26,6 @@ UPDATE cart_items SET quantity = $1 WHERE id = $2 AND cart_id = $3;
 SELECT id, cart_id, product_id, quantity, created_at
 FROM cart_items
 WHERE id = $1 AND cart_id = $2;
+
+-- name: ClearCartItems :exec
+DELETE FROM cart_items WHERE cart_id = $1;
