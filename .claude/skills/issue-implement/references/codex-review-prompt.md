@@ -1,6 +1,6 @@
 # Codex レビュープロンプトテンプレート
 
-設計レビューと品質ゲートレビューで共通のプロンプト構造。呼び出し元がパラメータを埋めて `timeout 300 codex exec --full-auto` に stdin で渡す。
+設計レビューと品質ゲートレビューで共通のプロンプト構造。呼び出し元がパラメータを埋めて `timeout 600 codex exec --full-auto` に stdin で渡す。
 
 ---
 

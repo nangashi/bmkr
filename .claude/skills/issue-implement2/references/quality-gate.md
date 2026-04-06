@@ -30,7 +30,7 @@ simplify
 
 ## Codex 観点付きレビュー
 
-`references/codex-review-prompt.md` のテンプレートに以下のパラメータを埋めてプロンプトを構築し、`timeout 300 codex exec --full-auto` に stdin で渡す。
+`references/codex-review-prompt.md` のテンプレートに以下のパラメータを埋めてプロンプトを構築し、`timeout 600 codex exec --full-auto` に stdin で渡す。
 
 - `{diff_command}`: `git diff main`
 - `{perspective_files}`: `silent-failure.md`, `project-compliance.md`, `security.md`

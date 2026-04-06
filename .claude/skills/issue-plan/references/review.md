@@ -107,7 +107,7 @@ bash .claude/skills/issue-plan/scripts/verify-plan.sh \
 
 計画を書いた LLM（Opus）とは別のモデル（Codex）で、受け入れ条件カバレッジとシンプルさをレビューする。バイアス軽減が主な目的。
 
-以下のプロンプトを構築し、`timeout 300 codex exec --full-auto` に stdin で渡す。codex CLI が利用できない場合は Opus サブエージェントにフォールバックする。
+以下のプロンプトを構築し、`timeout 600 codex exec --full-auto` に stdin で渡す。codex CLI が利用できない場合は Opus サブエージェントにフォールバックする。
 
 ```
 以下の実装計画をレビューしてください。
