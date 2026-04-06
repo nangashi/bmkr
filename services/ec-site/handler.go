@@ -64,6 +64,9 @@ func (h *CartServiceHandler) GetCart(
 	ctx context.Context,
 	req *connect.Request[ecv1.GetCartRequest],
 ) (*connect.Response[ecv1.GetCartResponse], error) {
+	if req.Msg.CustomerId <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
 	customerID := req.Msg.CustomerId
 
 	cart, err := h.getOrCreateCart(ctx, customerID)

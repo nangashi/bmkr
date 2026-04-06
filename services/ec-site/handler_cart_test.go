@@ -199,6 +199,13 @@ func TestGetCart(t *testing.T) {
 			wantErr:  true,
 		},
 		{
+			name:     "invalid: customer_id が 0 以下",
+			req:      &ecv1.GetCartRequest{CustomerId: 0},
+			querier:  func() *mockCartQuerier { return &mockCartQuerier{} },
+			wantCode: connect.CodeInvalidArgument,
+			wantErr:  true,
+		},
+		{
 			name: "internal: ListCartItems DB error",
 			req:  &ecv1.GetCartRequest{CustomerId: 100},
 			querier: func() *mockCartQuerier {

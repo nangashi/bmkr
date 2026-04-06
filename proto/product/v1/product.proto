@@ -50,8 +50,40 @@ message BatchGetProductsResponse {
 }
 
 service ProductService {
+  // CreateProduct creates a new product.
+  //
+  // Pre:
+  //   - name must be non-empty
+  //   - price must be 0 or greater
+  //   - stock_quantity must be 0 or greater
+  //
+  // Post:
+  //   - product is created in the DB and returned with an assigned id
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — name is empty, price is negative, or stock_quantity is negative
+  //
+  // Defers:
+  //   商品名の一意性チェックは行わない（DB スキーマに UNIQUE 制約なし）
   rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+
+  // GetProduct returns the product with the given id.
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — id is 0 or negative
+  //   NOT_FOUND        — no product with the given id exists
+  //
+  // Defers:
+  //   商品の論理削除・公開フラグ等のフィルタリングは行わない
   rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+
+  // ListProducts returns all products.
+  //
+  // Rejects:
+  //   該当なし（リクエストフィールドなし）
+  //
+  // Defers:
+  //   ページネーションは実装しない（学習用実装のため全件取得を優先する）
   rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
 
   // BatchGetProducts returns products for the given IDs.

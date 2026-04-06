@@ -59,6 +59,20 @@ message UpdateQuantityResponse {
 }
 
 service CartService {
+  // GetCart returns the cart for the given customer_id.
+  //
+  // Pre:
+  //   - customer_id must be a positive integer
+  //
+  // Post:
+  //   - if no cart exists for customer_id, a new cart is automatically created
+  //   - response contains the cart with all items
+  //
+  // Rejects:
+  //   INVALID_ARGUMENT — customer_id is 0 or negative
+  //
+  // Defers:
+  //   customer_id の存在確認（顧客が実在するか）は行わない（CustomerService への問い合わせなし）
   rpc GetCart(GetCartRequest) returns (GetCartResponse);
 
   // AddItem adds a product to the customer's cart.

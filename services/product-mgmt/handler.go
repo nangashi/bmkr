@@ -64,6 +64,9 @@ func (h *ProductServiceHandler) GetProduct(
 	ctx context.Context,
 	req *connect.Request[productv1.GetProductRequest],
 ) (*connect.Response[productv1.GetProductResponse], error) {
+	if req.Msg.Id <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid argument"))
+	}
 	product, err := h.store.GetProduct(ctx, req.Msg.Id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
