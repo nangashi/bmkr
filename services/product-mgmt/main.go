@@ -31,7 +31,29 @@ func main() {
 		dbURL = "postgres://postgres:postgres@localhost:5432/product?sslmode=disable"
 	}
 
-	pool, err := pgxpool.New(context.Background(), dbURL)
+	config, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		slog.Error("failed to parse database config", "error", err)
+		os.Exit(1)
+	}
+	// MaxConns: 5 — admin/management service with low request frequency;
+	//   3 services total 30 connections << PostgreSQL default max_connections (100)
+	config.MaxConns = 5
+	// MinConns: 2 — keep warm connections to reduce first-request latency
+	config.MinConns = 2
+	// ConnectTimeout: 5s — Docker Compose internal communication is typically milliseconds;
+	//   5s detects DB startup delays early while staying well within WriteTimeout (30s)
+	config.ConnConfig.ConnectTimeout = 5 * time.Second
+	// MaxConnLifetime: 1h — pgx v5 default, made explicit for clarity
+	config.MaxConnLifetime = 1 * time.Hour
+	// MaxConnLifetimeJitter: 5min — prevents thundering herd when all 3 services recycle connections simultaneously
+	config.MaxConnLifetimeJitter = 5 * time.Minute
+	// MaxConnIdleTime: 30min — pgx v5 default, appropriate for development with intermittent requests
+	config.MaxConnIdleTime = 30 * time.Minute
+	// HealthCheckPeriod: 1min — pgx v5 default, detects DB restart recovery within 1 minute
+	config.HealthCheckPeriod = 1 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
