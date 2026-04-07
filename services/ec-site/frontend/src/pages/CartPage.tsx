@@ -4,7 +4,15 @@ import { type Cart } from "@bmkr/bff/gen/ec/v1/cart_pb.js";
 import { cartClient } from "../api/client.js";
 import { CUSTOMER_ID } from "../constants.js";
 
-// CartPage はカートページを表示するコンポーネント。
+function CartButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>): React.ReactElement {
+  return (
+    <button
+      {...props}
+      className={`rounded border border-border bg-gray-100 px-4 py-1 disabled:opacity-50${props.className !== undefined ? ` ${props.className}` : ""}`}
+    />
+  );
+}
+
 export function CartPage(): React.ReactElement {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,25 +103,16 @@ export function CartPage(): React.ReactElement {
           <li key={item.id.toString()} className="border border-border rounded-lg p-4">
             <div>商品ID: {item.productId.toString()}</div>
             <div>数量: {item.quantity}</div>
-            <button
-              className="rounded border border-border bg-gray-100 px-4 py-1"
-              onClick={() => void handleUpdateQuantity(item.id, item.quantity + 1)}
-            >
+            <CartButton onClick={() => void handleUpdateQuantity(item.id, item.quantity + 1)}>
               +
-            </button>
-            <button
-              className="rounded border border-border bg-gray-100 px-4 py-1 disabled:opacity-50"
+            </CartButton>
+            <CartButton
               onClick={() => void handleUpdateQuantity(item.id, item.quantity - 1)}
               disabled={item.quantity <= 1}
             >
               -
-            </button>
-            <button
-              className="rounded border border-border bg-gray-100 px-4 py-1"
-              onClick={() => void handleRemoveItem(item.id)}
-            >
-              削除
-            </button>
+            </CartButton>
+            <CartButton onClick={() => void handleRemoveItem(item.id)}>削除</CartButton>
           </li>
         ))}
       </ul>
