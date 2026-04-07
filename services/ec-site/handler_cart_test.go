@@ -25,6 +25,7 @@ type mockCartQuerier struct {
 	removeCartItemFn         func(ctx context.Context, arg db.RemoveCartItemParams) (int64, error)
 	updateCartItemQuantityFn func(ctx context.Context, arg db.UpdateCartItemQuantityParams) (int64, error)
 	getCartItemFn            func(ctx context.Context, arg db.GetCartItemParams) (db.CartItem, error)
+	clearCartItemsFn         func(ctx context.Context, cartID int64) error
 }
 
 func (m *mockCartQuerier) GetCartByCustomerID(ctx context.Context, customerID int64) (db.Cart, error) {
@@ -74,6 +75,13 @@ func (m *mockCartQuerier) GetCartItem(ctx context.Context, arg db.GetCartItemPar
 		return m.getCartItemFn(ctx, arg)
 	}
 	panic("GetCartItem not expected")
+}
+
+func (m *mockCartQuerier) ClearCartItems(ctx context.Context, cartID int64) error {
+	if m.clearCartItemsFn != nil {
+		return m.clearCartItemsFn(ctx, cartID)
+	}
+	panic("ClearCartItems not called")
 }
 
 // ---------------------------------------------------------------------------

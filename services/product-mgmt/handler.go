@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	productv1 "github.com/nangashi/bmkr/gen/go/product/v1"
 	"github.com/nangashi/bmkr/lib/go/pgutil"
@@ -28,6 +29,7 @@ var _ productStore = (*db.Queries)(nil)
 
 type ProductServiceHandler struct {
 	store productStore
+	pool  *pgxpool.Pool // AllocateStock のトランザクション処理に使用
 }
 
 func (h *ProductServiceHandler) CreateProduct(
@@ -159,6 +161,55 @@ func (h *ProductServiceHandler) BatchGetProducts(
 	return connect.NewResponse(&productv1.BatchGetProductsResponse{
 		Products: protoProducts,
 	}), nil
+}
+
+// AllocateStock handles the AllocateStock RPC.
+// rows=0 は在庫不足と product_id 不存在の両方をカバーする（区別しない仕様）。
+func (h *ProductServiceHandler) AllocateStock(
+	ctx context.Context,
+	req *connect.Request[productv1.AllocateStockRequest],
+) (*connect.Response[productv1.AllocateStockResponse], error) {
+	items := req.Msg.GetItems()
+	if len(items) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("items must not be empty"))
+	}
+	for _, item := range items {
+		if item.GetProductId() <= 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("product_id must be positive"))
+		}
+		if item.GetQuantity() < 1 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("quantity must be at least 1"))
+		}
+	}
+
+	tx, err := h.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err, "method", "AllocateStock")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // commit 後の Rollback は無害
+
+	txQueries := db.New(tx)
+	for _, item := range items {
+		rows, err := txQueries.AllocateStock(ctx, db.AllocateStockParams{
+			ID:            item.GetProductId(),
+			StockQuantity: item.GetQuantity(),
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "database error", "error", err, "method", "AllocateStock")
+			return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+		}
+		if rows == 0 {
+			return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("insufficient stock"))
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit transaction", "error", err, "method", "AllocateStock")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	}
+
+	return connect.NewResponse(&productv1.AllocateStockResponse{}), nil
 }
 
 func dbProductToProto(p db.Product) *productv1.Product {

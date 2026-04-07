@@ -99,6 +99,7 @@ type mockProductServiceClient struct {
 	productv1connect.ProductServiceClient
 	GetProductFn       func(ctx context.Context, req *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error)
 	BatchGetProductsFn func(ctx context.Context, req *connect.Request[productv1.BatchGetProductsRequest]) (*connect.Response[productv1.BatchGetProductsResponse], error)
+	AllocateStockFn    func(ctx context.Context, req *connect.Request[productv1.AllocateStockRequest]) (*connect.Response[productv1.AllocateStockResponse], error)
 }
 
 func (m *mockProductServiceClient) GetProduct(ctx context.Context, req *connect.Request[productv1.GetProductRequest]) (*connect.Response[productv1.GetProductResponse], error) {
@@ -113,6 +114,13 @@ func (m *mockProductServiceClient) BatchGetProducts(ctx context.Context, req *co
 }
 
 func (m *mockProductServiceClient) CreateProduct(_ context.Context, _ *connect.Request[productv1.CreateProductRequest]) (*connect.Response[productv1.CreateProductResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
+}
+
+func (m *mockProductServiceClient) AllocateStock(ctx context.Context, req *connect.Request[productv1.AllocateStockRequest]) (*connect.Response[productv1.AllocateStockResponse], error) {
+	if m.AllocateStockFn != nil {
+		return m.AllocateStockFn(ctx, req)
+	}
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
 }
 
