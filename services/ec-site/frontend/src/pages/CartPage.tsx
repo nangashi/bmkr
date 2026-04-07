@@ -1,20 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
-import { createClient, ConnectError, Code } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
-import { CartService, type Cart } from "@bmkr/bff/gen/ec/v1/cart_pb.js";
-import { OrderService } from "@bmkr/bff/gen/ec/v1/order_pb.js";
+import { ConnectError, Code } from "@connectrpc/connect";
+import { type Cart } from "@bmkr/bff/gen/ec/v1/cart_pb.js";
+import { cartClient, orderClient } from "../api/client.js";
+import { CUSTOMER_ID } from "../constants.js";
 
-const transport = createConnectTransport({
-  baseUrl: "/",
-});
-const cartClient = createClient(CartService, transport);
-const orderClient = createClient(OrderService, transport);
-
-// 固定の customer_id（認証スコープ外のため）
-const CUSTOMER_ID = BigInt(1);
-
-// CartPage はカートページを表示するコンポーネント。
 export function CartPage(): React.ReactElement {
   const navigate = useNavigate();
   const [cart, setCart] = useState<Cart | null>(null);
