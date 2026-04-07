@@ -1,16 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
-import { CartService, type Cart } from "@bmkr/bff/gen/ec/v1/cart_pb.js";
-
-const transport = createConnectTransport({
-  baseUrl: "/",
-});
-const cartClient = createClient(CartService, transport);
-
-// 固定の customer_id（認証スコープ外のため）
-const CUSTOMER_ID = BigInt(1);
+import { type Cart } from "@bmkr/bff/gen/ec/v1/cart_pb.js";
+import { cartClient } from "../api/client.js";
+import { CUSTOMER_ID } from "../constants.js";
 
 // CartPage はカートページを表示するコンポーネント。
 export function CartPage(): React.ReactElement {
@@ -95,25 +87,33 @@ export function CartPage(): React.ReactElement {
   }
 
   return (
-    <div style={{ display: "grid", gap: "16px" }}>
+    <div className="grid gap-4">
       <Link to="/">商品一覧に戻る</Link>
       <h1>カート</h1>
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "12px" }}>
+      <ul className="list-none m-0 p-0 grid gap-3">
         {cart.items.map((item) => (
-          <li
-            key={item.id.toString()}
-            style={{ border: "1px solid #d1d5db", borderRadius: "8px", padding: "16px" }}
-          >
+          <li key={item.id.toString()} className="border border-border rounded-lg p-4">
             <div>商品ID: {item.productId.toString()}</div>
             <div>数量: {item.quantity}</div>
-            <button onClick={() => void handleUpdateQuantity(item.id, item.quantity + 1)}>+</button>
             <button
+              className="rounded border border-border bg-gray-100 px-4 py-1"
+              onClick={() => void handleUpdateQuantity(item.id, item.quantity + 1)}
+            >
+              +
+            </button>
+            <button
+              className="rounded border border-border bg-gray-100 px-4 py-1 disabled:opacity-50"
               onClick={() => void handleUpdateQuantity(item.id, item.quantity - 1)}
               disabled={item.quantity <= 1}
             >
               -
             </button>
-            <button onClick={() => void handleRemoveItem(item.id)}>削除</button>
+            <button
+              className="rounded border border-border bg-gray-100 px-4 py-1"
+              onClick={() => void handleRemoveItem(item.id)}
+            >
+              削除
+            </button>
           </li>
         ))}
       </ul>

@@ -1,13 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
-import { ProductService, type Product } from "@bmkr/bff/gen/product/v1/product_pb.js";
-
-const transport = createConnectTransport({
-  baseUrl: "/",
-});
-const client = createClient(ProductService, transport);
+import { type Product } from "@bmkr/bff/gen/product/v1/product_pb.js";
+import { productClient } from "../api/client.js";
 
 // ProductListPage は商品一覧ページを表示するコンポーネント。
 //
@@ -32,7 +26,7 @@ export function ProductListPage(): React.ReactElement {
 
     async function loadProducts(): Promise<void> {
       try {
-        const response = await client.listProducts({});
+        const response = await productClient.listProducts({});
         if (cancelled) {
           return;
         }

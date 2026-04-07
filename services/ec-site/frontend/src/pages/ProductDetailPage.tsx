@@ -1,18 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
-import { ProductService, type Product } from "@bmkr/bff/gen/product/v1/product_pb.js";
-import { CartService } from "@bmkr/bff/gen/ec/v1/cart_pb.js";
-
-const transport = createConnectTransport({
-  baseUrl: "/",
-});
-const client = createClient(ProductService, transport);
-const cartClient = createClient(CartService, transport);
-
-// 固定の customer_id（認証スコープ外のため）
-const CUSTOMER_ID = BigInt(1);
+import { type Product } from "@bmkr/bff/gen/product/v1/product_pb.js";
+import { productClient, cartClient } from "../api/client.js";
+import { CUSTOMER_ID } from "../constants.js";
 
 // ProductDetailPage は商品詳細ページを表示するコンポーネント。
 //
@@ -66,7 +56,7 @@ export function ProductDetailPage(): React.ReactElement {
 
     async function loadProduct(): Promise<void> {
       try {
-        const response = await client.getProduct({ id: BigInt(productId) });
+        const response = await productClient.getProduct({ id: BigInt(productId) });
         if (cancelled) {
           return;
         }
