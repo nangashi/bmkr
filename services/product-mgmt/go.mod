@@ -5,14 +5,14 @@ go 1.26.1
 replace github.com/nangashi/bmkr/lib/go => ../../lib/go
 
 require (
-	connectrpc.com/connect v1.19.1
-	github.com/a-h/templ v0.3.1001
-	github.com/jackc/pgx/v5 v5.8.0
-	github.com/labstack/echo/v4 v4.15.1
+	connectrpc.com/connect v1.20.0
+	github.com/a-h/templ v0.3.1020
+	github.com/jackc/pgx/v5 v5.10.0
+	github.com/labstack/echo/v4 v4.15.4
 	github.com/nangashi/bmkr/gen/go v0.0.0-00010101000000-000000000000
 	github.com/nangashi/bmkr/lib/go v0.0.0-00010101000000-000000000000
-	golang.org/x/net v0.52.0
-	google.golang.org/protobuf v1.36.11
+	golang.org/x/net v0.58.0
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
