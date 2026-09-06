@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	connectrpc.com/connect v1.19.1
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/labstack/echo/v4 v4.15.1
+	github.com/labstack/echo/v5 v5.3.1
 	github.com/nangashi/bmkr/gen/go v0.0.0-00010101000000-000000000000
 	google.golang.org/protobuf v1.36.11
 )
