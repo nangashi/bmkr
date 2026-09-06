@@ -3,11 +3,11 @@ module github.com/nangashi/bmkr/lib/go
 go 1.26.1
 
 require (
-	connectrpc.com/connect v1.19.1
-	github.com/jackc/pgx/v5 v5.8.0
-	github.com/labstack/echo/v4 v4.15.1
+	connectrpc.com/connect v1.20.0
+	github.com/jackc/pgx/v5 v5.10.0
+	github.com/labstack/echo/v4 v4.15.4
 	github.com/nangashi/bmkr/gen/go v0.0.0-00010101000000-000000000000
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 replace github.com/nangashi/bmkr/gen/go => ../../gen/go
