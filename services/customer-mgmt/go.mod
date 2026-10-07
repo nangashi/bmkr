@@ -5,9 +5,9 @@ go 1.26.1
 replace github.com/nangashi/bmkr/lib/go => ../../lib/go
 
 require (
-	connectrpc.com/connect v1.19.1
+	connectrpc.com/connect/v2 v2.0.0
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/labstack/echo/v4 v4.15.1
+	github.com/labstack/echo/v5 v5.4.0
 	github.com/nangashi/bmkr/gen/go v0.0.0-00010101000000-000000000000
 	github.com/nangashi/bmkr/lib/go v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.49.0
